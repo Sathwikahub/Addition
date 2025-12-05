@@ -15,7 +15,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.10.0</junit.version>
         <sonar.host.url>https://v2code.rtwohealthcare.com</sonar.host.url>
-         <sonar.token>sqp_c845971e99d79e08e5b3024752e6235cd4f41dec</sonar.token>
+         <sonar.token>squ_69f333bb135e814107e99c2ce88d265b558e2b64</sonar.token>
     </properties>
 
     <dependencies>
