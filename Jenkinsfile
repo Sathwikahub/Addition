@@ -26,7 +26,7 @@ pipeline {
 
         stage('Maven Build + Tests') {
             steps {
-                sh "mvn -B clean verify"
+                sh "cd Additions && mvn -B clean verify"
             }
         }
 
