@@ -31,12 +31,12 @@ pipeline {
     steps {
         withSonarQubeEnv('SQT2') {
             sh """
-                mvn sonar:sonar
-                    -Dsonar.projectKey=SQT2 \
-                    -Dsonar.projectName=SQT2  \
-                    -Dsonar.host.url=${SONAR_HOST_URL} \
-                     -Dsonar.token=${SONAR_TOKEN}
-            """
+mvn sonar:sonar \
+    -Dsonar.projectKey=SQT2 \
+    -Dsonar.projectName=SQT2 \
+    -Dsonar.host.url=${SONAR_HOST_URL} \
+    -Dsonar.token=${SONAR_TOKEN}
+"""
         }
     }
 }
