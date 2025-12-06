@@ -33,7 +33,7 @@ pipeline {
                         mvn sonar:sonar \
                         -Dsonar.projectKey=Addition \
                         -Dsonar.projectName=Addition \
-                        -Dsonar.host.url=${SONAR_HOST_URL}
+                        -Dsonar.host.url=http://v2code.rtwohealthcare.com
                     """
                 }
             }
