@@ -27,17 +27,19 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('sq1') {
-                    sh """
-                        mvn sonar:sonar \
-                        -Dsonar.projectKey=Addition \
-                        -Dsonar.projectName=Addition \
-                        -Dsonar.host.url=http://v2code.rtwohealthcare.com
-                    """
-                }
-            }
+    steps {
+        withSonarQubeEnv('sq1') {
+            sh """
+                mvn sonar:sonar \
+                -Dsonar.projectKey=Addition \
+                -Dsonar.projectName=Addition \
+                -Dsonar.host.url=https://v2code.rtwohealthcare.com \
+                -Dsonar.token=${SONAR_TOKEN}
+            """
         }
+    }
+}
+
 
         stage('Quality Gate') {
             steps {
