@@ -8,7 +8,7 @@ pipeline {
 
     environment {
         SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
-        SONAR_TOKEN = "squ_69f333bb135e814107e99c2ce88d265b558e2b64"
+        SONAR_TOKEN = "squ_f395c05ffc9a37f00219ef1032bbf5324677f60c"
     }
 
     stages {
@@ -29,11 +29,11 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarTest') {
+                withSonarQubeEnv('sq1') {
                     sh """
                         mvn sonar:sonar \
-                        -Dsonar.projectKey=Test \
-                        -Dsonar.projectName=Test \
+                        -Dsonar.projectKey=sq1 \
+                        -Dsonar.projectName=sq1 \
                         -Dsonar.host.url=${SONAR_HOST_URL} \
                         -Dsonar.token=${SONAR_TOKEN}
                     """
