@@ -8,7 +8,7 @@ pipeline {
 
  environment {
     SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
-    SONAR_TOKEN = squ_f55f15c2e5d6d9700d20c417e0084645a15d74c6
+    SONAR_TOKEN = "squ_f55f15c2e5d6d9700d20c417e0084645a15d74c6"
 }
 
     stages {
