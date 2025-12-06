@@ -34,8 +34,8 @@ pipeline {
                     sh """
                         #cd Additions
                         mvn sonar:sonar \
-                        -Dsonar.projectKey=sq1 \
-                        -Dsonar.projectName=sq1 \
+                        -Dsonar.projectKey=Addition \
+                        -Dsonar.projectName=Addition \
                         -Dsonar.host.url=${SONAR_HOST_URL} \
                         -Dsonar.token=${SONAR_TOKEN}
                     """
