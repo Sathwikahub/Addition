@@ -2,14 +2,14 @@ pipeline {
     agent any
 
     tools {
-       jdk 'java17'
-        maven 'Maven3.9.11'    // Your Maven tool name in Jenkins
+        jdk 'java17'
+        maven 'Maven3.9.11'
     }
 
-    environment {
-        SONAR_PROJECT_KEY = "Sonarqubetest1"
-        SONAR_PROJECT_NAME = "Sonarqubetest1"
-    }
+ environment {
+    SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
+    SONAR_TOKEN = "squ_f1f891e4451b4b8601e27212bb6096b48376eeda"
+}
 
     stages {
 
@@ -19,36 +19,13 @@ pipeline {
             }
         }
 
-        stage('Build & Unit Tests') {
+        stage('Maven Build + Tests') {
             steps {
-                sh "mvn -B clean verify"
+                sh """
+                    mvn -B clean verify
+                """
             }
         }
-
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('SQT2') {  
-                    sh """
-                        mvn sonar:sonar \
-                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                        -Dsonar.projectName=${SONAR_PROJECT_NAME}
-                    """
-                }
-            }
-        }
-
-        stage('Quality Gate') {
-            steps {
-                script {
-                    timeout(time: 5, unit: 'MINUTES') {
-                        waitForQualityGate abortPipeline: true
-                    }
-                }
-            }
-        }
-    }
-}
-
 
        stage('SonarQube Analysis') {
     steps {
