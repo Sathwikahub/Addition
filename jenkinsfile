@@ -22,7 +22,7 @@ pipeline {
         stage('Maven Build + Tests') {
             steps {
                 sh """
-                    cd Additions
+                    #cd Additions
                     mvn -B clean verify
                 """
             }
@@ -32,7 +32,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('sq1') {
                     sh """
-                        cd Additions
+                        #cd Additions
                         mvn sonar:sonar \
                         -Dsonar.projectKey=sq1 \
                         -Dsonar.projectName=sq1 \
