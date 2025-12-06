@@ -6,9 +6,10 @@ pipeline {
         maven 'Maven3.9.11'
     }
 
-    environment {
-        SONAR_HOST_URL = "https://v2code.rtwohealthcare.com" 
-    }
+ environment {
+    SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
+    SONAR_TOKEN = credentials('sonar-token')
+}
 
     stages {
 
@@ -26,19 +27,20 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
+       stage('SonarQube Analysis') {
     steps {
         withSonarQubeEnv('sq1') {
             sh """
                 mvn sonar:sonar \
-                -Dsonar.projectKey=Addition \
-                -Dsonar.projectName=Addition \
-                -Dsonar.host.url=https://v2code.rtwohealthcare.com \
-                -Dsonar.token=${SONAR_TOKEN}
+                    -Dsonar.projectKey=Addition \
+                    -Dsonar.projectName=Addition \
+                    -Dsonar.host.url=${SONAR_HOST_URL} \
+                    -Dsonar.token=${SONAR_TOKEN}
             """
         }
     }
 }
+
 
 
         stage('Quality Gate') {
