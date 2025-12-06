@@ -31,7 +31,7 @@ pipeline {
     steps {
         withSonarQubeEnv('sq1') {
             sh """
-                mvn  sonar:sonar \
+                mvn sonar:sonar
                     -Dsonar.projectKey=Addition \
                     -Dsonar.projectName=Addition \
                     -Dsonar.host.url=${SONAR_HOST_URL} \
