@@ -6,7 +6,6 @@ pipeline {
         maven 'Maven3.9.11'
     }
 
-
     stages {
 
         stage('Checkout') {
@@ -17,34 +16,23 @@ pipeline {
 
         stage('Maven Build + Tests') {
             steps {
-                sh """
-                    mvn -B clean verify
-                """
+                sh "mvn -B clean verify"
             }
         }
 
-       stage('SonarQube Analysis') {
- environment {
-    SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
-    SONAR_TOKEN = "squ_f1f891e4451b4b8601e27212bb6096b48376eeda"
-}
-
-    steps {
-        withSonarQubeEnv('SQT2') {
-            sh """
-mvn sonar:sonar \
-    -Dsonar.projectKey=Sonarqubetest1 \
-    -Dsonar.projectName=Sonarqubetest1 \
-    -SONAR_HOST_URL = "https://v2code.rtwohealthcare.com" \
-    -SONAR_TOKEN = "squ_f1f891e4451b4b8601e27212bb6096b48376eeda"
-  #  -Dsonar.host.url=${SONAR_HOST_URL} \
-  #  -Dsonar.token=${SONAR_TOKEN}
-"""
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SQT2') {
+                    sh """
+                        mvn sonar:sonar \
+                            -Dsonar.projectKey=Sonarqubetest1 \
+                            -Dsonar.projectName=Sonarqubetest1 \
+                            -Dsonar.host.url=$SONAR_HOST_URL \
+                            -Dsonar.login=$SONAR_AUTH_TOKEN
+                    """
+                }
+            }
         }
-    }
-}
-
-
 
         stage('Quality Gate') {
             steps {
@@ -55,5 +43,3 @@ mvn sonar:sonar \
         }
     }
 }
-
-
