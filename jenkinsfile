@@ -28,7 +28,7 @@ pipeline {
                             -Dsonar.projectKey=Sonarqubetest1 \
                             -Dsonar.projectName=Sonarqubetest1 \
                             -Dsonar.host.url=$SONAR_HOST_URL \
-                            -Dsonar.login=$SONAR_AUTH_TOKEN
+                            -Dsonar.login=$SONAR_TOKEN
                     """
                 }
             }
