@@ -7,7 +7,8 @@ pipeline {
     }
 
     environment {
-        SONAR_TOKEN = "squ_f1f891e4451b4b8601e27212bb6096b48376eeda"  // store token in Jenkins credentials
+        SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
+        SONAR_TOKEN = "squ_f1f891e4451b4b8601e27212bb6096b48376eeda"  
     }
 
     stages {
