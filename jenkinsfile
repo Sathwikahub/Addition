@@ -6,6 +6,10 @@ pipeline {
         maven 'Maven3.9.11'
     }
 
+    environment {
+        SONAR_TOKEN = credentials('sonar-token')  // store token in Jenkins credentials
+    }
+
     stages {
 
         stage('Checkout') {
@@ -25,10 +29,10 @@ pipeline {
                 withSonarQubeEnv('SQT2') {
                     sh """
                         mvn sonar:sonar \
-                            -Dsonar.projectKey=Sonarqubetest1 \
-                            -Dsonar.projectName=Sonarqubetest1 \
-                            -Dsonar.host.url=$SONAR_HOST_URL \
-                            -Dsonar.login=$SONAR_TOKEN
+                          -Dsonar.projectKey=Sonarqubetest1 \
+                          -Dsonar.projectName=Sonarqubetest1 \
+                          -Dsonar.host.url=$SONAR_HOST_URL \
+                          -Dsonar.token=$SONAR_TOKEN
                     """
                 }
             }
