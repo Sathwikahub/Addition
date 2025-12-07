@@ -6,10 +6,10 @@ pipeline {
         maven 'Maven3.9.11'
     }
 
- #environment {
-    #SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
-   # SONAR_TOKEN = "squ_f1f891e4451b4b8601e27212bb6096b48376eeda"
-#}
+ environment {
+    SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
+    SONAR_TOKEN = "squ_f1f891e4451b4b8601e27212bb6096b48376eeda"
+}
 
     stages {
 
