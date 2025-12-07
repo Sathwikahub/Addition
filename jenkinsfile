@@ -21,24 +21,19 @@ pipeline {
 
         stage('Maven Build + Tests') {
             steps {
-                sh """
-                    mvn -B clean verify
-                """
+                 sh "${mvn}/bin/mvn clean verify "
             }
         }
-
-       stage('SonarQube Analysis') {
-    steps {
-        withSonarQubeEnv('SQT2') {
-            sh """
-mvn sonar:sonar \
-    -Dsonar.projectKey=Sonarqubetest1 \
-    -Dsonar.projectName=Sonarqubetest1 \
-    -Dsonar.host.url=${SONAR_HOST_URL} \
-    -Dsonar.token=${SONAR_TOKEN}
-"""
-        }
+node {
+  stage('SCM') {
+    checkout scm
+  }
+  stage('SonarQube Analysis') {
+    def mvn = tool 'Default Maven';
+    withSonarQubeEnv(SQT2) {
+      sh "${mvn}/bin/mvn sonar:sonar -Dsonar.projectKey=Sonarqubetest1 -Dsonar.projectName='Sonarqubetest1'"
     }
+  }
 }
 
 
