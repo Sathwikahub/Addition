@@ -48,3 +48,21 @@ pipeline {
         }
     }
 }
+post {
+    failure {
+        mail to: 'monish.reddy@invensis.net',
+             subject: "Jenkins Job Failed: ${env.SQT1} #${env.BUILD_NUMBER}",
+             body: """Hello,
+
+The Jenkins job '${env.SQT1}' has FAILED.
+
+Build Number: ${env.BUILD_NUMBER}
+Build URL: ${env.BUILD_URL}
+
+Please check the console output for more details.
+
+Regards,
+Jenkins
+"""
+    }
+}
