@@ -8,7 +8,7 @@ pipeline {
 
     environment {
         SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
-        SONAR_TOKEN = "squ_f1f891e4451b4b8601e27212bb6096b48376eeda"  
+        SONAR_TOKEN = "sqp_20e53c0354bb146d27639f8e3ffe0a65a2b784f4"  
     }
 
     stages {
@@ -24,16 +24,17 @@ pipeline {
                 sh "mvn -B clean verify"
             }
         }
+stage {
 
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SQT2') {
                     sh """
-                        mvn sonar:sonar \
-                          -Dsonar.projectKey=Sonarqubetest1 \
-                          -Dsonar.projectName=Sonarqubetest1 \
-                          -Dsonar.host.url=$SONAR_HOST_URL \
-                          -Dsonar.token=$SONAR_TOKEN
+                mvn clean verify sonar:sonar \
+  -Dsonar.projectKey=Sonarqubetest1 \
+  -Dsonar.projectName='Sonarqubetest1' \
+  -Dsonar.host.url=https://v2code.rtwohealthcare.com \
+  -Dsonar.token=sqp_20e53c0354bb146d27639f8e3ffe0a65a2b784f4
                     """
                 }
             }
@@ -46,23 +47,5 @@ pipeline {
                 }
             }
         }
-    }
-}
-post {
-    failure {
-        mail to: 'monish.reddy@invensis.net',
-             subject: "Jenkins Job Failed: ${env.SQT1} #${env.BUILD_NUMBER}",
-             body: """Hello,
-
-The Jenkins job '${env.SQT1}' has FAILED.
-
-Build Number: ${env.BUILD_NUMBER}
-Build URL: ${env.BUILD_URL}
-
-Please check the console output for more details.
-
-Regards,
-Jenkins
-"""
     }
 }
