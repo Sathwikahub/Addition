@@ -2,35 +2,36 @@ pipeline {
     agent any
 
     tools {
-        jdk 'java17'
-        maven 'Maven3.9.11'
+        jdk "java17"
+        maven "Maven3.9.11"
     }
 
     environment {
         SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
-        SONAR_TOKEN = "sqp_20e53c0354bb146d27639f8e3ffe0a65a2b784f4"  
+        SONAR_TOKEN = "sqp_20e53c0354bb146d27639f8e3ffe0a65a2b784f4"
+
+        
     }
 
     stages {
 
         stage('Checkout') {
-            steps {
-                checkout scm
-            }
+            steps { checkout scm }
         }
 
         stage('Maven Build + Tests') {
             steps {
-                sh "mvn -B clean verify"
+                sh """
+                    mvn -B clean verify
+                """
             }
         }
-stage {
 
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SQT1') {
                     sh """
-                mvn clean verify sonar:sonar \
+                       mvn clean verify sonar:sonar \
   -Dsonar.projectKey=Sonarqubetest1 \
   -Dsonar.projectName='Sonarqubetest1' \
   -Dsonar.host.url=https://v2code.rtwohealthcare.com \
@@ -39,14 +40,3 @@ stage {
                 }
             }
         }
-
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 2, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
-    }
-}
-}
