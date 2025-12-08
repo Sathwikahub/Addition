@@ -28,8 +28,7 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                echo "running Legacy Sonar Scanner (4.6) for old SonarQube"
-                withSonarQubeEnv('test1') {
+                withSonarQubeEnv('Sonar_Maven') {
                     sh """
                         cd Additions
                         mvn sonar:sonar \
