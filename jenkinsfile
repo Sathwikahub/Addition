@@ -8,7 +8,7 @@ pipeline {
 
     environment {
         SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
-        SONAR_TOKEN = "sqp_0d210ec36a0768fec122f9e01b846c8da5642ff0"
+        SONAR_TOKEN = "sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa"
 
         
     }
@@ -31,11 +31,11 @@ pipeline {
             steps {
                 withSonarQubeEnv('ST1') {
                     sh """
-                       mvn clean verify sonar:sonar \
-  -Dsonar.projectKey=SonarTest \
-  -Dsonar.projectName='SonarTest' \
+mvn clean verify sonar:sonar \
+  -Dsonar.projectKey=Javaproject \
+  -Dsonar.projectName='Javaproject' \
   -Dsonar.host.url=https://v2code.rtwohealthcare.com \
-  -Dsonar.token=sqp_0d210ec36a0768fec122f9e01b846c8da5642ff0
+  -Dsonar.token=sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa
                     """
                 }
             }
