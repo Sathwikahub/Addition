@@ -29,13 +29,13 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SQT1') {
+                withSonarQubeEnv('Sonar') {
                     sh """
                        mvn clean verify sonar:sonar \
-  -Dsonar.projectKey=Sonarqubetest1 \
-  -Dsonar.projectName='Sonarqubetest1' \
+  -Dsonar.projectKey=SonarTest \
+  -Dsonar.projectName='SonarTest' \
   -Dsonar.host.url=https://v2code.rtwohealthcare.com \
-  -Dsonar.token=sqp_20e53c0354bb146d27639f8e3ffe0a65a2b784f4
+  -Dsonar.token=sqp_0d210ec36a0768fec122f9e01b846c8da5642ff0
                     """
                 }
             }
