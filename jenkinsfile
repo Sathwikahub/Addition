@@ -59,6 +59,10 @@ pipeline {
                  script{
                       docker.withRegistry("https://v2deploy.rtwohealthcare.com"){
                                dockerImage push ('latest')
-
+                             }
+}
+}
+}
     }
 }
+
