@@ -10,7 +10,7 @@ pipeline {
         SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
         SONAR_TOKEN = "sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa"
 
-        imageName = "SonarQube1"
+        imageName = "Sonarqube1"
         registryCredentials = "nexus-docker-cred"
         registry = "https://v2deploy.rtwohealthcare.com"
         dockerImage = ''
