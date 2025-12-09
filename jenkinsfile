@@ -50,7 +50,7 @@ pipeline {
      stage('Build Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${imageName}", "Additions")
+                    dockerImage = docker.build("${imageName}", ".")
                 }
             }
         }
