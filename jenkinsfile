@@ -54,6 +54,11 @@ pipeline {
                 }
             }
         }
+     stage('push to docker'){
+              steps{
+                 script{
+                      docker.withRegistry("https://v2deploy.rtwohealthcare.com"){
+                               dockerImage push ('latest')
 
     }
 }
