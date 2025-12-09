@@ -21,6 +21,7 @@ pipeline {
         stage('Checkout') {
             steps { checkout scm }
         }
+}
 
         stage('Maven Build + Tests') {
             steps {
@@ -44,6 +45,7 @@ pipeline {
                     """
 }
 }
-
+}
+}
     
 
