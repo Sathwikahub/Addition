@@ -19,9 +19,10 @@ pipeline {
     stages {
 
         stage('Checkout') {
-            steps { checkout scm }
+            steps { 
+                checkout scm
+            }
         }
-}
 
         stage('Maven Build + Tests') {
             steps {
@@ -43,9 +44,9 @@ pipeline {
                             -Dsonar.host.url=${SONAR_HOST_URL} \
                             -Dsonar.token=${SONAR_TOKEN}
                     """
-}
-}
-}
-}
-    
+                }
+            }
+        }
 
+    }
+}
