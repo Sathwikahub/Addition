@@ -13,7 +13,7 @@ pipeline {
         imageName = "sonarqube1"
         registryCredentials = "nexus-docker-cred"
         registry = "https://v2deploy.rtwohealthcare.com"
-        dockerImage = ''
+        dockerImage = ""
     }
 
     stages {
@@ -39,38 +39,41 @@ pipeline {
                     sh """
                         cd Additions
                         mvn sonar:sonar \
-                            -Dsonar.projectKey=Javaproject \
-                            -Dsonar.projectName=Javaproject \
-                            -Dsonar.host.url=${SONAR_HOST_URL} \
-                            -Dsonar.token=${SONAR_TOKEN}
+                          -Dsonar.projectKey=Javaproject \
+                          -Dsonar.projectName=Javaproject \
+                          -Dsonar.host.url=${SONAR_HOST_URL} \
+                          -Dsonar.token=${SONAR_TOKEN}
                     """
                 }
             }
         }
-           stage('Quality Gate') {
-              steps {
-                    timeout(time: 2, unit: 'MINUTES') {
-                       waitForQualityGate abortPipeline: true
-        }
-    }
-}
 
-     stage('Build Image') {
+        stage('Quality Gate') {
+            steps {
+                script {
+                    timeout(time: 2, unit: 'MINUTES') {
+                        waitForQualityGate abortPipeline: true
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
             steps {
                 script {
                     dockerImage = docker.build("${imageName}", ".")
                 }
             }
         }
- stage('push to docker') {
-    steps {
-        script {
-            docker.withRegistry('https://v2deploy.rtwohealthcare.com', 'nexus-docker-cred') {
-                docker.image('sonarqube1').push()
+
+        stage('Push to Docker Registry') {
+            steps {
+                script {
+                    docker.withRegistry("${registry}", "${registryCredentials}") {
+                        dockerImage.push()
+                    }
+                }
             }
         }
     }
 }
-    }
-}
-
