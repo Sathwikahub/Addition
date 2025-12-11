@@ -65,5 +65,44 @@ pipeline {
                 }
             }
         }
+        stage('mail notification') {
+            steps {
+                echo "Running build..."
+                // your build steps here
+            }
+        }
+    }
+
+    post {
+        success {
+            emailext (
+                subject: "SUCCESS: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                body: """<p>Hi Team,</p>
+                        <p>The Jenkins build completed <b>SUCCESSFULLY</b>.</p>
+                        <p>Job Name: ${env.JOB_NAME}<br>
+                        Build Number: ${env.BUILD_NUMBER}</p>
+                        <p>Regards,<br>Jenkins</p>""",
+                to: "Monish.reddy@invensis.net"
+            )
+        }
+
+        failure {
+            emailext (
+                subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                body: """<p>Hi Team,</p>
+                        <p>The Jenkins build has <b>FAILED</b>.</p>
+                        <p>Job Name: ${env.JOB_NAME}<br>
+                        Build Number: ${env.BUILD_NUMBER}</p>
+                        <p>Check console output for details.</p>""",
+                to: "monish.reddy@invensis.net"
+            )
+        }
+
+        always {
+            echo "Build finished. Email sent."
+        }
+    }
+}
+
     }
 }
