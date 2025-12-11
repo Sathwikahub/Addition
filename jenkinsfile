@@ -75,7 +75,7 @@ pipeline {
 
     post {
           failure {
-            emailext (
+            emaitext (
                 subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
                 body: """<p>Hi Team,</p>
                         <p>The Jenkins build has <b>FAILED</b>.</p>
