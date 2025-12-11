@@ -65,12 +65,13 @@ pipeline {
                 }
             }
         }
-        stage('mail notification') {
+
+        stage('Mail Notification') {
             steps {
-                echo "Running build..."
-                // your build steps here
+                echo "Build is complete, sending email..."
             }
         }
+    }
 
     post {
         success {
@@ -102,7 +103,3 @@ pipeline {
         }
     }
 }
-}
-
-    
-
