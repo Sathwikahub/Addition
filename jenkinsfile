@@ -60,7 +60,7 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry("${registry}", "${registryCredentials}") {
-                        dockerImage.puh()
+                        dockerImage.push()
                     }
                 }
             }
