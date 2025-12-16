@@ -66,28 +66,54 @@ pipeline {
             }
         }
 
-        stage('Mail Notification') {
+         stage('Build') {
             steps {
-                echo "Build is complete, sending email..."
+                echo 'Starting build...'
+                sh 'exit 1'   // ❌ Simulating failure (remove in real build)
             }
         }
     }
 
     post {
-          failure {
-            emaitext (
-                subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-                body: """<p>Hi Team,</p>
-                        <p>The Jenkins build has <b>FAILED</b>.</p>
-                        <p>Job Name: ${env.JOB_NAME}<br>
-                        Build Number: ${env.BUILD_NUMBER}</p>
-                        <p>Check console output for details.</p>""",
-                to: "monish.reddy@invensis.net"
+        failure {
+            emailext(
+                to: 'monish.reddy@invensis.net',
+                subject: "❌ Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                mimeType: 'text/html',
+                body: """
+                <html>
+                <body style="font-family: Arial, sans-serif;">
+                    <h2 style="color:red;">Build Failed ❌</h2>
+
+                    <table border="1" cellpadding="8" cellspacing="0">
+                        <tr>
+                            <th align="left">Job Name</th>
+                            <td>${env.JOB_NAME}</td>
+                        </tr>
+                        <tr>
+                            <th align="left">Build Number</th>
+                            <td>${env.BUILD_NUMBER}</td>
+                        </tr>
+                        <tr>
+                            <th align="left">Status</th>
+                            <td style="color:red;">FAILED</td>
+                        </tr>
+                        <tr>
+                            <th align="left">Build URL</th>
+                            <td>
+                                <a href="${env.BUILD_URL}">
+                                    Click here to view build
+                                </a>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <br/>
+                    <p>Please check the Jenkins console logs for details.</p>
+                </body>
+                </html>
+                """
             )
         }
-
-        always {
-            echo "Build finished. Email sent."
-        }
-    }
+}
 }
