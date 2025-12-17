@@ -49,21 +49,25 @@ pipeline {
             }
         }
 
-        stage('Quality Gate Check (Coverage < 80%)') {
+        stage('Quality Gate Check (Mail Only)') {
             steps {
                 script {
                     timeout(time: 2, unit: 'MINUTES') {
                         def qg = waitForQualityGate()
 
                         if (qg.status != 'OK') {
+
+                            // Mark build as UNSTABLE (NOT FAILED)
+                            currentBuild.result = 'UNSTABLE'
+
                             emailext(
                                 to: 'monish.reddy@invensis.net',
-                                subject: "❌ Code Coverage Failed (<80%) - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                                subject: "⚠️ Code Coverage Below 80% - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                                 mimeType: 'text/html',
                                 body: """
                                 <html>
                                   <body style="font-family: Arial;">
-                                    <h2 style="color:red;">Code Coverage Failed ❌</h2>
+                                    <h2 style="color:orange;">Code Coverage Below 80%</h2>
                                     <p><b>Quality Gate Status:</b> ${qg.status}</p>
                                     <p><b>Required Coverage:</b> 80%</p>
 
@@ -87,13 +91,11 @@ pipeline {
                                     </table>
 
                                     <br/>
-                                    <p>Please improve test coverage and re-run the build.</p>
+                                    <p>Pipeline continued and Docker image was built.</p>
                                   </body>
                                 </html>
                                 """
                             )
-
-                          #  error "Stopping pipeline due to low code coverage (<80%)"
                         }
                     }
                 }
