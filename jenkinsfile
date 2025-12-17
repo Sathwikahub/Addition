@@ -7,11 +7,12 @@ pipeline {
     }
 
     environment {
-        SONAR_SERVER = "SonarQube"
-        SONAR_PROJECT_KEY = "Javaproject"
-        REGISTRY_URL = "https://v2deploy.rtwohealthcare.com"
-        REGISTRY_CRED = "nexus-docker-cred"
-        IMAGE_NAME = "sonarqube1"
+        SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
+        SONAR_TOKEN = "sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa"
+
+        DOCKER_REGISTRY_URL = "v2deploy.rtwohealthcare.com"
+        IMAGE_NAME = "test-v2"
+        IMAGE_TAG = "v${BUILD_NUMBER}"
     }
 
     stages {
@@ -20,41 +21,44 @@ pipeline {
             steps { checkout scm }
         }
 
-        stage('Build + Test + Coverage') {
+        stage('Maven Build + Tests') {
             steps {
-                sh "cd Additions && mvn clean verify"
+                sh """
+                    cd Additions
+                    mvn -B clean verify
+                """
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv("${SONAR_SERVER}") {
-                    withCredentials([string(credentialsId: 'Sonar_Maven', variable: 'SONAR_TOKEN')]) {
-                        sh """
-                          cd Additions
-                          mvn sonar:sonar \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.branch.name=${env.BRANCH_NAME} \
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                        cd Additions
+                        mvn sonar:sonar \
+                            -Dsonar.projectKey=Javaproject \
+                            -Dsonar.projectName=Javaproject \
+                            -Dsonar.host.url=${SONAR_HOST_URL} \
                             -Dsonar.token=${SONAR_TOKEN}
-                        """
-                    }
+                    """
                 }
             }
         }
 
-        stage('Quality Gate Check') {
+        // ✅ ADDED QUALITY GATE
+        stage('Quality Gate') {
             steps {
                 script {
                     timeout(time: 2, unit: 'MINUTES') {
                         def qg = waitForQualityGate()
                         env.QG_STATUS = qg.status
 
-                        def coverageMetric = qg.conditions.find {
+                        def coverageCondition = qg.conditions.find {
                             it.metricKey == 'coverage'
                         }
 
-                        env.COVERAGE = coverageMetric?.actualValue ?: "N/A"
-                        env.COVERAGE_STATUS = coverageMetric?.status ?: "UNKNOWN"
+                        env.COVERAGE = coverageCondition?.actualValue ?: "N/A"
+                        env.COVERAGE_STATUS = coverageCondition?.status ?: "UNKNOWN"
 
                         if (qg.status != 'OK') {
                             error "Quality Gate Failed"
@@ -63,45 +67,70 @@ pipeline {
                 }
             }
         }
+
+        stage('Docker Build') {
+            steps {
+                sh """
+                    cd Additions
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
+                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:latest
+                """
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'nexus-docker-cred',
+                    usernameVariable: 'USER',
+                    passwordVariable: 'PASS'
+                )]) {
+                    sh """
+                        echo "$PASS" | docker login ${DOCKER_REGISTRY_URL} -u "$USER" --password-stdin
+                        docker push ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
+                        docker push ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:latest
+                        docker logout ${DOCKER_REGISTRY_URL}
+                    """
+                }
+            }
+        }
     }
 
+    // ✅ EMAIL ONLY FOR COVERAGE FAILURE
     post {
         failure {
             script {
-
-                /* EMAIL ONLY FOR COVERAGE FAILURE */
                 if (env.COVERAGE_STATUS == 'ERROR') {
 
-                    def sonarDashboard =
-                        "https://v2code.rtwohealthcare.com/dashboard?id=${SONAR_PROJECT_KEY}&branch=${env.BRANCH_NAME}"
+                    def sonarLink =
+                      "https://v2code.rtwohealthcare.com/dashboard?id=Javaproject"
 
                     emailext(
-                        to: "monish.reddy@invensis.net",
-                        subject: "❌ Code Coverage Failed | ${JOB_NAME} #${BUILD_NUMBER}",
+                        to: 'monish.reddy@invensis.net',
+                        subject: "❌ Code Coverage < 80% | ${JOB_NAME} #${BUILD_NUMBER}",
                         mimeType: 'text/html',
                         body: """
                         <html>
-                        <body style="font-family: Arial;">
+                        <body>
                             <h2 style="color:red;">Code Coverage Quality Gate Failed</h2>
 
-                            <table border="1" cellpadding="8">
-                                <tr><th align="left">Project</th><td>${SONAR_PROJECT_KEY}</td></tr>
-                                <tr><th align="left">Branch</th><td>${env.BRANCH_NAME}</td></tr>
-                                <tr><th align="left">Coverage</th>
-                                    <td style="color:red;"><b>${env.COVERAGE}%</b></td></tr>
-                                <tr><th align="left">Required</th><td>≥ Quality Gate Threshold</td></tr>
-                                <tr><th align="left">Quality Gate</th><td>${env.QG_STATUS}</td></tr>
-                            </table>
+                            <p><b>Project:</b> Javaproject</p>
+                            <p><b>Coverage:</b>
+                               <span style="color:red;">
+                               ${env.COVERAGE}%
+                               </span>
+                            </p>
+                            <p><b>Required:</b> ≥ 80%</p>
 
-                            <br/>
                             <p>
-                                🔗 <a href="${sonarDashboard}">
-                                View SonarQube Dashboard</a>
+                              🔗 <a href="${sonarLink}">
+                              View SonarQube Dashboard</a>
                             </p>
 
                             <p>
-                                🔗 <a href="${BUILD_URL}">
-                                View Jenkins Build</a>
+                              🔗 <a href="${BUILD_URL}">
+                              View Jenkins Build</a>
                             </p>
                         </body>
                         </html>
