@@ -7,13 +7,9 @@ pipeline {
     }
 
     environment {
-        SONAR_HOST_URL = 'https://v2code.rtwohealthcare.com'
-        SONAR_TOKEN    = 'sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa'
-
         imageName           = 'sonarqube1'
         registryCredentials = 'nexus-docker-cred'
         registry            = 'https://v2deploy.rtwohealthcare.com'
-
         dockerImage = ''
     }
 
@@ -29,7 +25,7 @@ pipeline {
             steps {
                 sh '''
                     cd Additions
-                    mvn -B clean verify
+                    mvn clean verify
                 '''
             }
         }
@@ -41,59 +37,39 @@ pipeline {
                         cd Additions
                         mvn sonar:sonar \
                           -Dsonar.projectKey=Javaproject \
-                          -Dsonar.projectName=Javaproject \
-                          -Dsonar.host.url=${SONAR_HOST_URL} \
-                          -Dsonar.token=${SONAR_TOKEN}
+                          -Dsonar.projectName=Javaproject
                     '''
                 }
             }
         }
 
-        stage('Quality Gate Check (Coverage < 80%)') {
+        stage('Quality Gate (Coverage < 80%)') {
             steps {
                 script {
-                    timeout(time: 2, unit: 'MINUTES') {
+                    timeout(time: 3, unit: 'MINUTES') {
                         def qg = waitForQualityGate()
 
                         if (qg.status != 'OK') {
                             emailext(
                                 to: 'monish.reddy@invensis.net',
-                                subject: "❌ Code Coverage Failed (<80%) - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                                subject: "❌ Code Coverage < 80% | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                                 mimeType: 'text/html',
                                 body: """
                                 <html>
-                                  <body style="font-family: Arial;">
-                                    <h2 style="color:red;">Code Coverage Failed ❌</h2>
-                                    <p><b>Quality Gate Status:</b> ${qg.status}</p>
-                                    <p><b>Required Coverage:</b> 80%</p>
-
-                                    <table border="1" cellpadding="8">
-                                      <tr>
-                                        <th>Job Name</th>
-                                        <td>${env.JOB_NAME}</td>
-                                      </tr>
-                                      <tr>
-                                        <th>Build Number</th>
-                                        <td>${env.BUILD_NUMBER}</td>
-                                      </tr>
-                                      <tr>
-                                        <th>Sonar Dashboard</th>
-                                        <td>
-                                          <a href="${SONAR_HOST_URL}">
-                                            View SonarQube Report
-                                          </a>
-                                        </td>
-                                      </tr>
-                                    </table>
-
-                                    <br/>
-                                    <p>Please improve test coverage and re-run the build.</p>
+                                  <body>
+                                    <h2 style="color:red;">Quality Gate Failed ❌</h2>
+                                    <p><b>Status:</b> ${qg.status}</p>
+                                    <p><b>Coverage Threshold:</b> 80%</p>
+                                    <p>
+                                      <a href="${env.BUILD_URL}">
+                                        View Jenkins Build
+                                      </a>
+                                    </p>
                                   </body>
                                 </html>
                                 """
                             )
-
-                            error "Stopping pipeline due to low code coverage (<80%)"
+                            error "Stopping pipeline due to Quality Gate failure"
                         }
                     }
                 }
@@ -108,7 +84,7 @@ pipeline {
             }
         }
 
-        stage('Push to Docker Registry') {
+        stage('Push Docker Image') {
             steps {
                 script {
                     docker.withRegistry(registry, registryCredentials) {
