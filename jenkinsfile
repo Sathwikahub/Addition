@@ -2,17 +2,19 @@ pipeline {
     agent any
 
     tools {
-        jdk "java17"
-        maven "Maven3.9.11"
+        jdk 'java17'
+        maven 'Maven3.9.11'
     }
 
     environment {
-        SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
-        SONAR_PROJECT_KEY = "Javaproject"
+        SONAR_HOST_URL = 'https://v2code.rtwohealthcare.com'
+        SONAR_TOKEN    = 'sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa'
 
-        DOCKER_REGISTRY_URL = "v2deploy.rtwohealthcare.com"
-        IMAGE_NAME = "test-v2"
-        IMAGE_TAG = "v${BUILD_NUMBER}"
+        imageName           = 'sonarqube1'
+        registryCredentials = 'nexus-docker-cred'
+        registry            = 'https://v2deploy.rtwohealthcare.com'
+
+        dockerImage = ''
     }
 
     stages {
@@ -35,117 +37,75 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                        sh '''
-                            cd Additions
-                            mvn sonar:sonar \
-                              -Dsonar.projectKey=Javaproject \
-                              -Dsonar.projectName=Javaproject \
-                              -Dsonar.host.url=$SONAR_HOST_URL \
-                              -Dsonar.token=$SONAR_TOKEN
-                        '''
-                    }
+                    sh '''
+                        cd Additions
+                        mvn sonar:sonar \
+                          -Dsonar.projectKey=Javaproject \
+                          -Dsonar.projectName=Javaproject \
+                          -Dsonar.host.url=${SONAR_HOST_URL} \
+                          -Dsonar.token=${SONAR_TOKEN}
+                    '''
                 }
             }
         }
 
-        stage('Quality Gate (Capture Coverage Only)') {
+        stage('Build Docker Image') {
             steps {
                 script {
-                    timeout(time: 3, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-
-                        def coverageCondition = qg.conditions.find {
-                            it.metricKey == 'coverage'
-                        }
-
-                        env.COVERAGE = coverageCondition?.actualValue ?: "0"
-                        env.COVERAGE_STATUS = coverageCondition?.status ?: "UNKNOWN"
-
-                        echo "Coverage Value: ${env.COVERAGE}%"
-                        echo "Coverage Status: ${env.COVERAGE_STATUS}"
-
-                        // ❌ DO NOT FAIL BUILD
-                        if (env.COVERAGE_STATUS != 'OK') {
-                            echo "Coverage below threshold, but build will continue"
-                        }
-                    }
+                    dockerImage = docker.build(imageName)
                 }
             }
         }
 
-        stage('Docker Build') {
+        stage('Push to Docker Registry') {
             steps {
-                sh '''
-                    cd Additions
-                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:latest
-                '''
-            }
-        }
-
-        stage('Docker Push') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'nexus-docker-cred',
-                    usernameVariable: 'USER',
-                    passwordVariable: 'PASS'
-                )]) {
-                    sh '''
-                        echo "$PASS" | docker login ${DOCKER_REGISTRY_URL} -u "$USER" --password-stdin
-                        docker push ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
-                        docker push ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:latest
-                        docker logout ${DOCKER_REGISTRY_URL}
-                    '''
+                script {
+                    docker.withRegistry(registry, registryCredentials) {
+                        dockerImage.push()
+                    }
                 }
             }
         }
     }
 
-    // ✅ EMAIL AFTER PIPELINE COMPLETES
     post {
-        always {
-            script {
-                if (env.COVERAGE.toFloat() < 80) {
-
-                    def sonarLink =
-                      "https://v2code.rtwohealthcare.com/dashboard?id=Javaproject"
-
-                    emailext(
-                        to: 'monish.reddy@invensis.net',
-                        subject: "⚠ Code Coverage < 80% | ${JOB_NAME} #${BUILD_NUMBER}",
-                        mimeType: 'text/html',
-                        body: """
-                        <html>
-                        <body>
-                            <h2 style="color:red;">Code Coverage Below Threshold</h2>
-
-                            <p><b>Project:</b> Javaproject</p>
-                            <p><b>Coverage:</b>
-                               <span style="color:red;">
-                               ${env.COVERAGE}%
-                               </span>
-                            </p>
-                            <p><b>Required:</b> ≥ 80%</p>
-
-                            <p>
-                              🔗 <a href="${sonarLink}">
-                              View SonarQube Dashboard</a>
-                            </p>
-
-                            <p>
-                              🔗 <a href="${BUILD_URL}">
-                              View Jenkins Build</a>
-                            </p>
-                        </body>
-                        </html>
-                        """
-                    )
-                } else {
-                    echo "Coverage >= 80%. No email sent."
-                }
-            }
+        failure {
+            emailext(
+                to: 'monish.reddy@invensis.net',
+                subject: "❌ Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                mimeType: 'text/html',
+                body: """
+                <html>
+                  <body style="font-family: Arial, sans-serif;">
+                    <h2 style="color:red;">Build Failed ❌</h2>
+                    <table border="1" cellpadding="8" cellspacing="0">
+                      <tr>
+                        <th align="left">Job Name</th>
+                        <td>${env.JOB_NAME}</td>
+                      </tr>
+                      <tr>
+                        <th align="left">Build Number</th>
+                        <td>${env.BUILD_NUMBER}</td>
+                      </tr>
+                      <tr>
+                        <th align="left">Status</th>
+                        <td style="color:red;">FAILED</td>
+                      </tr>
+                      <tr>
+                        <th align="left">Build URL</th>
+                        <td>
+                          <a href="${env.BUILD_URL}">
+                            Click here to view build
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                    <br/>
+                    <p>Please check the Jenkins console logs for details.</p>
+                  </body>
+                </html>
+                """
+            )
         }
     }
 }
