@@ -7,11 +7,11 @@ pipeline {
     }
 
     environment {
-        SONAR_SERVER = "SonarQube"
+        SONAR_SERVER = "Sonar_Maven"
         SONAR_PROJECT_KEY = "Javaproject"
-        IMAGE_NAME = "sonarqube1"
         REGISTRY_URL = "https://v2deploy.rtwohealthcare.com"
         REGISTRY_CRED = "nexus-docker-cred"
+        IMAGE_NAME = "sonarqube1"
     }
 
     stages {
@@ -20,7 +20,7 @@ pipeline {
             steps { checkout scm }
         }
 
-        stage('Build & Test') {
+        stage('Build + Test + Coverage') {
             steps {
                 sh "cd Additions && mvn clean verify"
             }
@@ -28,12 +28,13 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    withCredentials([string(credentialsId: 'Sonar_Maven', variable: 'Sonar_Maven')]) {
+                withSonarQubeEnv("${SONAR_SERVER}") {
+                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                         sh """
                           cd Additions
                           mvn sonar:sonar \
                             -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.branch.name=${env.BRANCH_NAME} \
                             -Dsonar.token=${SONAR_TOKEN}
                         """
                     }
@@ -41,14 +42,19 @@ pipeline {
             }
         }
 
-        stage('Quality Gate') {
+        stage('Quality Gate Check') {
             steps {
                 script {
                     timeout(time: 2, unit: 'MINUTES') {
                         def qg = waitForQualityGate()
                         env.QG_STATUS = qg.status
-                        env.COVERAGE = qg.conditions
-                            .find { it.metricKey == 'coverage' }?.actualValue ?: "N/A"
+
+                        def coverageMetric = qg.conditions.find {
+                            it.metricKey == 'coverage'
+                        }
+
+                        env.COVERAGE = coverageMetric?.actualValue ?: "N/A"
+                        env.COVERAGE_STATUS = coverageMetric?.status ?: "UNKNOWN"
 
                         if (qg.status != 'OK') {
                             error "Quality Gate Failed"
@@ -62,16 +68,43 @@ pipeline {
     post {
         failure {
             script {
-                if (env.QG_STATUS == 'ERROR') {
+
+                /* EMAIL ONLY FOR COVERAGE FAILURE */
+                if (env.COVERAGE_STATUS == 'ERROR') {
+
+                    def sonarDashboard =
+                        "https://v2code.rtwohealthcare.com/dashboard?id=${SONAR_PROJECT_KEY}&branch=${env.BRANCH_NAME}"
+
                     emailext(
-                        to: 'monish.reddy@invensis.net',
-                        subject: "❌ Code Coverage Failed - ${JOB_NAME} #${BUILD_NUMBER}",
+                        to: "monish.reddy@invensis.net",
+                        subject: "❌ Code Coverage Failed | ${JOB_NAME} #${BUILD_NUMBER}",
                         mimeType: 'text/html',
                         body: """
-                        <h2 style="color:red;">SonarQube Quality Gate Failed</h2>
-                        <p><b>Coverage:</b> ${env.COVERAGE}%</p>
-                        <p><b>Required:</b> 80%</p>
-                        <p><a href="${BUILD_URL}">View Jenkins Build</a></p>
+                        <html>
+                        <body style="font-family: Arial;">
+                            <h2 style="color:red;">Code Coverage Quality Gate Failed</h2>
+
+                            <table border="1" cellpadding="8">
+                                <tr><th align="left">Project</th><td>${SONAR_PROJECT_KEY}</td></tr>
+                                <tr><th align="left">Branch</th><td>${env.BRANCH_NAME}</td></tr>
+                                <tr><th align="left">Coverage</th>
+                                    <td style="color:red;"><b>${env.COVERAGE}%</b></td></tr>
+                                <tr><th align="left">Required</th><td>≥ Quality Gate Threshold</td></tr>
+                                <tr><th align="left">Quality Gate</th><td>${env.QG_STATUS}</td></tr>
+                            </table>
+
+                            <br/>
+                            <p>
+                                🔗 <a href="${sonarDashboard}">
+                                View SonarQube Dashboard</a>
+                            </p>
+
+                            <p>
+                                🔗 <a href="${BUILD_URL}">
+                                View Jenkins Build</a>
+                            </p>
+                        </body>
+                        </html>
                         """
                     )
                 }
