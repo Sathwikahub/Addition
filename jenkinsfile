@@ -49,6 +49,57 @@ pipeline {
             }
         }
 
+        stage('Quality Gate Check (Coverage < 80%)') {
+            steps {
+                script {
+                    timeout(time: 2, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
+
+                        if (qg.status != 'OK') {
+                            emailext(
+                                to: 'monish.reddy@invensis.net',
+                                subject: "❌ Code Coverage Failed (<80%) - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                                mimeType: 'text/html',
+                                body: """
+                                <html>
+                                  <body style="font-family: Arial;">
+                                    <h2 style="color:red;">Code Coverage Failed ❌</h2>
+                                    <p><b>Quality Gate Status:</b> ${qg.status}</p>
+                                    <p><b>Required Coverage:</b> 80%</p>
+
+                                    <table border="1" cellpadding="8">
+                                      <tr>
+                                        <th>Job Name</th>
+                                        <td>${env.JOB_NAME}</td>
+                                      </tr>
+                                      <tr>
+                                        <th>Build Number</th>
+                                        <td>${env.BUILD_NUMBER}</td>
+                                      </tr>
+                                      <tr>
+                                        <th>Sonar Dashboard</th>
+                                        <td>
+                                          <a href="${SONAR_HOST_URL}">
+                                            View SonarQube Report
+                                          </a>
+                                        </td>
+                                      </tr>
+                                    </table>
+
+                                    <br/>
+                                    <p>Please improve test coverage and re-run the build.</p>
+                                  </body>
+                                </html>
+                                """
+                            )
+
+                            error "Stopping pipeline due to low code coverage (<80%)"
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
@@ -65,47 +116,6 @@ pipeline {
                     }
                 }
             }
-        }
-    }
-
-    post {
-        failure {
-            emailext(
-                to: 'monish.reddy@invensis.net',
-                subject: "❌ Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                mimeType: 'text/html',
-                body: """
-                <html>
-                  <body style="font-family: Arial, sans-serif;">
-                    <h2 style="color:red;">Build Failed ❌</h2>
-                    <table border="1" cellpadding="8" cellspacing="0">
-                      <tr>
-                        <th align="left">Job Name</th>
-                        <td>${env.JOB_NAME}</td>
-                      </tr>
-                      <tr>
-                        <th align="left">Build Number</th>
-                        <td>${env.BUILD_NUMBER}</td>
-                      </tr>
-                      <tr>
-                        <th align="left">Status</th>
-                        <td style="color:red;">FAILED</td>
-                      </tr>
-                      <tr>
-                        <th align="left">Build URL</th>
-                        <td>
-                          <a href="${env.BUILD_URL}">
-                            Click here to view build
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                    <br/>
-                    <p>Please check the Jenkins console logs for details.</p>
-                  </body>
-                </html>
-                """
-            )
         }
     }
 }
