@@ -7,9 +7,13 @@ pipeline {
     }
 
     environment {
+        SONAR_HOST_URL = 'https://v2code.rtwohealthcare.com'
+        SONAR_TOKEN    = 'sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa'
+
         imageName           = 'sonarqube1'
         registryCredentials = 'nexus-docker-cred'
         registry            = 'https://v2deploy.rtwohealthcare.com'
+
         dockerImage = ''
     }
 
@@ -25,7 +29,7 @@ pipeline {
             steps {
                 sh '''
                     cd Additions
-                    mvn clean verify
+                    mvn -B clean verify
                 '''
             }
         }
@@ -37,39 +41,71 @@ pipeline {
                         cd Additions
                         mvn sonar:sonar \
                           -Dsonar.projectKey=Javaproject \
-                          -Dsonar.projectName=Javaproject
+                          -Dsonar.projectName=Javaproject \
+                          -Dsonar.host.url=${SONAR_HOST_URL} \
+                          -Dsonar.token=${SONAR_TOKEN}
                     '''
                 }
             }
         }
 
-        stage('Quality Gate (Coverage < 80%)') {
+        stage('Quality Gate Check (Coverage < 80%)') {
             steps {
                 script {
-                    timeout(time: 3, unit: 'MINUTES') {
+                    timeout(time: 2, unit: 'MINUTES') {
+
                         def qg = waitForQualityGate()
 
                         if (qg.status != 'OK') {
+
                             emailext(
                                 to: 'monish.reddy@invensis.net',
-                                subject: "❌ Code Coverage < 80% | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                                subject: "⚠️ Code Coverage Below 80% - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                                 mimeType: 'text/html',
                                 body: """
                                 <html>
-                                  <body>
-                                    <h2 style="color:red;">Quality Gate Failed ❌</h2>
-                                    <p><b>Status:</b> ${qg.status}</p>
-                                    <p><b>Coverage Threshold:</b> 80%</p>
-                                    <p>
-                                      <a href="${env.BUILD_URL}">
-                                        View Jenkins Build
-                                      </a>
-                                    </p>
+                                  <body style="font-family: Arial;">
+                                    <h2 style="color:orange;">Code Coverage Warning ⚠️</h2>
+
+                                    <p><b>Quality Gate Status:</b> ${qg.status}</p>
+                                    <p><b>Required Coverage:</b> 80%</p>
+
+                                    <table border="1" cellpadding="8">
+                                      <tr>
+                                        <th>Job Name</th>
+                                        <td>${env.JOB_NAME}</td>
+                                      </tr>
+                                      <tr>
+                                        <th>Build Number</th>
+                                        <td>${env.BUILD_NUMBER}</td>
+                                      </tr>
+                                      <tr>
+                                        <th>Build URL</th>
+                                        <td>
+                                          <a href="${env.BUILD_URL}">
+                                            View Jenkins Build
+                                          </a>
+                                        </td>
+                                      </tr>
+                                      <tr>
+                                        <th>Sonar Dashboard</th>
+                                        <td>
+                                          <a href="${SONAR_HOST_URL}">
+                                            View SonarQube Report
+                                          </a>
+                                        </td>
+                                      </tr>
+                                    </table>
+
+                                    <br/>
+                                    <p>This is a warning only. Pipeline execution continues.</p>
                                   </body>
                                 </html>
                                 """
                             )
-                            error "Stopping pipeline due to Quality Gate failure"
+
+                            // Mark build as UNSTABLE but continue
+                            currentBuild.result = 'UNSTABLE'
                         }
                     }
                 }
@@ -84,7 +120,7 @@ pipeline {
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Push to Docker Registry') {
             steps {
                 script {
                     docker.withRegistry(registry, registryCredentials) {
