@@ -7,27 +7,22 @@ pipeline {
     }
 
     environment {
+        SONAR_SERVER = "SonarQube"
+        SONAR_PROJECT_KEY = "Javaproject"
         IMAGE_NAME = "sonarqube1"
         REGISTRY_URL = "https://v2deploy.rtwohealthcare.com"
         REGISTRY_CRED = "nexus-docker-cred"
-        SONAR_SERVER = "SonarQube"
-        SONAR_PROJECT_KEY = "Javaproject"
     }
 
     stages {
 
         stage('Checkout') {
-            steps {
-                checkout scm
-            }
+            steps { checkout scm }
         }
 
         stage('Build & Test') {
             steps {
-                sh """
-                    cd Additions
-                    mvn clean verify
-                """
+                sh "cd Additions && mvn clean verify"
             }
         }
 
@@ -36,17 +31,17 @@ pipeline {
                 withSonarQubeEnv('SonarQube') {
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                         sh """
-                            cd Additions
-                            mvn sonar:sonar \
-                              -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                              -Dsonar.token=${SONAR_TOKEN}
+                          cd Additions
+                          mvn sonar:sonar \
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.token=${SONAR_TOKEN}
                         """
                     }
                 }
             }
         }
 
-        stage('Quality Gate Check') {
+        stage('Quality Gate') {
             steps {
                 script {
                     timeout(time: 2, unit: 'MINUTES') {
@@ -62,74 +57,21 @@ pipeline {
                 }
             }
         }
-
-        stage('Build Docker Image') {
-            when {
-                expression { env.QG_STATUS == 'OK' }
-            }
-            steps {
-                script {
-                    dockerImage = docker.build("${IMAGE_NAME}")
-                }
-            }
-        }
-
-        stage('Push Docker Image') {
-            when {
-                expression { env.QG_STATUS == 'OK' }
-            }
-            steps {
-                script {
-                    docker.withRegistry("${REGISTRY_URL}", "${REGISTRY_CRED}") {
-                        dockerImage.push()
-                    }
-                }
-            }
-        }
     }
 
     post {
         failure {
             script {
-                if (env.QG_STATUS != 'OK') {
+                if (env.QG_STATUS == 'ERROR') {
                     emailext(
                         to: 'monish.reddy@invensis.net',
-                        subject: "❌ Code Coverage Failed: ${JOB_NAME} #${BUILD_NUMBER}",
+                        subject: "❌ Code Coverage Failed - ${JOB_NAME} #${BUILD_NUMBER}",
                         mimeType: 'text/html',
                         body: """
-                        <html>
-                        <body style="font-family: Arial;">
-                            <h2 style="color:red;">SonarQube Quality Gate Failed ❌</h2>
-
-                            <table border="1" cellpadding="8">
-                                <tr>
-                                    <th align="left">Job Name</th>
-                                    <td>${JOB_NAME}</td>
-                                </tr>
-                                <tr>
-                                    <th align="left">Build Number</th>
-                                    <td>${BUILD_NUMBER}</td>
-                                </tr>
-                                <tr>
-                                    <th align="left">Coverage</th>
-                                    <td style="color:red;"><b>${env.COVERAGE}%</b></td>
-                                </tr>
-                                <tr>
-                                    <th align="left">Required Coverage</th>
-                                    <td>80%</td>
-                                </tr>
-                                <tr>
-                                    <th align="left">Build URL</th>
-                                    <td>
-                                        <a href="${BUILD_URL}">View Build</a>
-                                    </td>
-                                </tr>
-                            </table>
-
-                            <br/>
-                            <p>Please improve test coverage and re-run the build.</p>
-                        </body>
-                        </html>
+                        <h2 style="color:red;">SonarQube Quality Gate Failed</h2>
+                        <p><b>Coverage:</b> ${env.COVERAGE}%</p>
+                        <p><b>Required:</b> 80%</p>
+                        <p><a href="${BUILD_URL}">View Jenkins Build</a></p>
                         """
                     )
                 }
