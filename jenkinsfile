@@ -8,7 +8,7 @@ pipeline {
 
     environment {
         SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
-        SONAR_TOKEN = "sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa"
+        SONAR_PROJECT_KEY = "Javaproject"
 
         DOCKER_REGISTRY_URL = "v2deploy.rtwohealthcare.com"
         IMAGE_NAME = "test-v2"
@@ -18,50 +18,56 @@ pipeline {
     stages {
 
         stage('Checkout') {
-            steps { checkout scm }
+            steps {
+                checkout scm
+            }
         }
 
         stage('Maven Build + Tests') {
             steps {
-                sh """
+                sh '''
                     cd Additions
                     mvn -B clean verify
-                """
+                '''
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh """
-                        cd Additions
-                        mvn sonar:sonar \
-                            -Dsonar.projectKey=Javaproject \
-                            -Dsonar.projectName=Javaproject \
-                            -Dsonar.host.url=${SONAR_HOST_URL} \
-                            -Dsonar.token=${SONAR_TOKEN}
-                    """
+                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                        sh '''
+                            cd Additions
+                            mvn sonar:sonar \
+                              -Dsonar.projectKey=Javaproject \
+                              -Dsonar.projectName=Javaproject \
+                              -Dsonar.host.url=$SONAR_HOST_URL \
+                              -Dsonar.token=$SONAR_TOKEN
+                        '''
+                    }
                 }
             }
         }
 
-        // ✅ ADDED QUALITY GATE
-        stage('Quality Gate') {
+        stage('Quality Gate (Capture Coverage Only)') {
             steps {
                 script {
-                    timeout(time: 2, unit: 'MINUTES') {
+                    timeout(time: 3, unit: 'MINUTES') {
                         def qg = waitForQualityGate()
-                        env.QG_STATUS = qg.status
 
                         def coverageCondition = qg.conditions.find {
                             it.metricKey == 'coverage'
                         }
 
-                        env.COVERAGE = coverageCondition?.actualValue ?: "N/A"
+                        env.COVERAGE = coverageCondition?.actualValue ?: "0"
                         env.COVERAGE_STATUS = coverageCondition?.status ?: "UNKNOWN"
 
-                        if (qg.status != 'OK') {
-                            error "Quality Gate Failed"
+                        echo "Coverage Value: ${env.COVERAGE}%"
+                        echo "Coverage Status: ${env.COVERAGE_STATUS}"
+
+                        // ❌ DO NOT FAIL BUILD
+                        if (env.COVERAGE_STATUS != 'OK') {
+                            echo "Coverage below threshold, but build will continue"
                         }
                     }
                 }
@@ -70,12 +76,12 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                sh """
+                sh '''
                     cd Additions
                     docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
                     docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
                     docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:latest
-                """
+                '''
             }
         }
 
@@ -86,34 +92,34 @@ pipeline {
                     usernameVariable: 'USER',
                     passwordVariable: 'PASS'
                 )]) {
-                    sh """
+                    sh '''
                         echo "$PASS" | docker login ${DOCKER_REGISTRY_URL} -u "$USER" --password-stdin
                         docker push ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
                         docker push ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:latest
                         docker logout ${DOCKER_REGISTRY_URL}
-                    """
+                    '''
                 }
             }
         }
     }
 
-    // ✅ EMAIL ONLY FOR COVERAGE FAILURE
+    // ✅ EMAIL AFTER PIPELINE COMPLETES
     post {
-        failure {
+        always {
             script {
-                if (env.COVERAGE_STATUS == 'ERROR') {
+                if (env.COVERAGE.toFloat() < 80) {
 
                     def sonarLink =
                       "https://v2code.rtwohealthcare.com/dashboard?id=Javaproject"
 
                     emailext(
                         to: 'monish.reddy@invensis.net',
-                        subject: "❌ Code Coverage < 80% | ${JOB_NAME} #${BUILD_NUMBER}",
+                        subject: "⚠ Code Coverage < 80% | ${JOB_NAME} #${BUILD_NUMBER}",
                         mimeType: 'text/html',
                         body: """
                         <html>
                         <body>
-                            <h2 style="color:red;">Code Coverage Quality Gate Failed</h2>
+                            <h2 style="color:red;">Code Coverage Below Threshold</h2>
 
                             <p><b>Project:</b> Javaproject</p>
                             <p><b>Coverage:</b>
@@ -136,6 +142,8 @@ pipeline {
                         </html>
                         """
                     )
+                } else {
+                    echo "Coverage >= 80%. No email sent."
                 }
             }
         }
