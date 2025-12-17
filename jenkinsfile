@@ -7,107 +7,133 @@ pipeline {
     }
 
     environment {
-        SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
-        SONAR_TOKEN = "sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa"
-
-        imageName = "sonarqube1"
-        registryCredentials = "nexus-docker-cred"
-        registry = "https://v2deploy.rtwohealthcare.com"
-        dockerImage = ""
+        IMAGE_NAME = "sonarqube1"
+        REGISTRY_URL = "https://v2deploy.rtwohealthcare.com"
+        REGISTRY_CRED = "nexus-docker-cred"
+        SONAR_SERVER = "SonarQube"
+        SONAR_PROJECT_KEY = "Javaproject"
     }
 
     stages {
 
         stage('Checkout') {
-            steps { 
+            steps {
                 checkout scm
             }
         }
 
-        stage('Maven Build + Tests') {
+        stage('Build & Test') {
             steps {
                 sh """
                     cd Additions
-                    mvn -B clean verify
+                    mvn clean verify
                 """
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh """
-                        cd Additions
-                        mvn sonar:sonar \
-                          -Dsonar.projectKey=Javaproject \
-                          -Dsonar.projectName=Javaproject \
-                          -Dsonar.host.url=${SONAR_HOST_URL} \
-                          -Dsonar.token=${SONAR_TOKEN}
-                    """
-                }
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    dockerImage = docker.build("${imageName}", ".")
-                }
-            }
-        }
-
-        stage('Push to Docker Registry') {
-            steps {
-                script {
-                    docker.withRegistry("${registry}", "${registryCredentials}") {
-                        dockerImage.push()
+                withSonarQubeEnv("${SONAR_SERVER}") {
+                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                        sh """
+                            cd Additions
+                            mvn sonar:sonar \
+                              -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                              -Dsonar.token=${SONAR_TOKEN}
+                        """
                     }
                 }
             }
         }
 
+        stage('Quality Gate Check') {
+            steps {
+                script {
+                    timeout(time: 2, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
+                        env.QG_STATUS = qg.status
+                        env.COVERAGE = qg.conditions
+                            .find { it.metricKey == 'coverage' }?.actualValue ?: "N/A"
+
+                        if (qg.status != 'OK') {
+                            error "Quality Gate Failed"
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            when {
+                expression { env.QG_STATUS == 'OK' }
+            }
+            steps {
+                script {
+                    dockerImage = docker.build("${IMAGE_NAME}")
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            when {
+                expression { env.QG_STATUS == 'OK' }
+            }
+            steps {
+                script {
+                    docker.withRegistry("${REGISTRY_URL}", "${REGISTRY_CRED}") {
+                        dockerImage.push()
+                    }
+                }
+            }
+        }
     }
 
     post {
         failure {
-            emailext(
-                to: 'monish.reddy@invensis.net',
-                subject: "❌ Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                mimeType: 'text/html',
-                body: """
-                <html>
-                <body style="font-family: Arial, sans-serif;">
-                    <h2 style="color:red;">Build Failed ❌</h2>
+            script {
+                if (env.QG_STATUS != 'OK') {
+                    emailext(
+                        to: 'monish.reddy@invensis.net',
+                        subject: "❌ Code Coverage Failed: ${JOB_NAME} #${BUILD_NUMBER}",
+                        mimeType: 'text/html',
+                        body: """
+                        <html>
+                        <body style="font-family: Arial;">
+                            <h2 style="color:red;">SonarQube Quality Gate Failed ❌</h2>
 
-                    <table border="1" cellpadding="8" cellspacing="0">
-                        <tr>
-                            <th align="left">Job Name</th>
-                            <td>${env.JOB_NAME}</td>
-                        </tr>
-                        <tr>
-                            <th align="left">Build Number</th>
-                            <td>${env.BUILD_NUMBER}</td>
-                        </tr>
-                        <tr>
-                            <th align="left">Status</th>
-                            <td style="color:red;">FAILED</td>
-                        </tr>
-                        <tr>
-                            <th align="left">Build URL</th>
-                            <td>
-                                <a href="${env.BUILD_URL}">
-                                    Click here to view build
-                                </a>
-                            </td>
-                        </tr>
-                    </table>
+                            <table border="1" cellpadding="8">
+                                <tr>
+                                    <th align="left">Job Name</th>
+                                    <td>${JOB_NAME}</td>
+                                </tr>
+                                <tr>
+                                    <th align="left">Build Number</th>
+                                    <td>${BUILD_NUMBER}</td>
+                                </tr>
+                                <tr>
+                                    <th align="left">Coverage</th>
+                                    <td style="color:red;"><b>${env.COVERAGE}%</b></td>
+                                </tr>
+                                <tr>
+                                    <th align="left">Required Coverage</th>
+                                    <td>80%</td>
+                                </tr>
+                                <tr>
+                                    <th align="left">Build URL</th>
+                                    <td>
+                                        <a href="${BUILD_URL}">View Build</a>
+                                    </td>
+                                </tr>
+                            </table>
 
-                    <br/>
-                    <p>Please check the Jenkins console logs for details.</p>
-                </body>
-                </html>
-                """
-            )
+                            <br/>
+                            <p>Please improve test coverage and re-run the build.</p>
+                        </body>
+                        </html>
+                        """
+                    )
+                }
+            }
         }
-}
+    }
 }
