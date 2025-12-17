@@ -8,6 +8,7 @@ pipeline {
 
     environment {
         SONAR_HOST_URL = 'https://v2code.rtwohealthcare.com'
+        SONAR_TOKEN    = 'sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa'
 
         imageName           = 'sonarqube1'
         registryCredentials = 'nexus-docker-cred'
@@ -48,37 +49,51 @@ pipeline {
             }
         }
 
-        stage('Quality Gate Check (Mail Only)') {
+        stage('Quality Gate Check (Coverage < 80%)') {
             steps {
                 script {
-                    catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                    timeout(time: 2, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
 
-                        timeout(time: 2, unit: 'MINUTES') {
-                            def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            emailext(
+                                to: 'monish.reddy@invensis.net',
+                                subject: "❌ Code Coverage Failed (<80%) - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                                mimeType: 'text/html',
+                                body: """
+                                <html>
+                                  <body style="font-family: Arial;">
+                                    <h2 style="color:red;">Code Coverage Failed ❌</h2>
+                                    <p><b>Quality Gate Status:</b> ${qg.status}</p>
+                                    <p><b>Required Coverage:</b> 80%</p>
 
-                            if (qg.status != 'OK') {
-
-                                emailext(
-                                    to: 'monish.reddy@invensis.net',
-                                    subject: "⚠️ Code Coverage Below 80% - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                                    mimeType: 'text/html',
-                                    body: """
-                                    <html>
-                                      <body>
-                                        <h2 style="color:orange;">Code Coverage Warning</h2>
-                                        <p><b>Quality Gate Status:</b> ${qg.status}</p>
-                                        <p>Pipeline continues. Please improve coverage.</p>
-
-                                        <p>
+                                    <table border="1" cellpadding="8">
+                                      <tr>
+                                        <th>Job Name</th>
+                                        <td>${env.JOB_NAME}</td>
+                                      </tr>
+                                      <tr>
+                                        <th>Build Number</th>
+                                        <td>${env.BUILD_NUMBER}</td>
+                                      </tr>
+                                      <tr>
+                                        <th>Sonar Dashboard</th>
+                                        <td>
                                           <a href="${SONAR_HOST_URL}">
                                             View SonarQube Report
                                           </a>
-                                        </p>
-                                      </body>
-                                    </html>
-                                    """
-                                )
-                            }
+                                        </td>
+                                      </tr>
+                                    </table>
+
+                                    <br/>
+                                    <p>Please improve test coverage and re-run the build.</p>
+                                  </body>
+                                </html>
+                                """
+                            )
+
+                            error "Stopping pipeline due to low code coverage (<80%)"
                         }
                     }
                 }
