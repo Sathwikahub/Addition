@@ -7,8 +7,9 @@ pipeline {
     }
 
     environment {
-        SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
-        SONAR_TOKEN = "sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa"
+        SONAR_HOST_URL = "http://10.80.5.127:9070"
+        SONAR_PROJECT_KEY = "Javaproject"
+        COVERAGE_THRESHOLD = "80"
 
         DOCKER_REGISTRY_URL = "v2deploy.rtwohealthcare.com"
         IMAGE_NAME = "test-v2"
@@ -21,47 +22,69 @@ pipeline {
             steps { checkout scm }
         }
 
-        stage('Maven Build + Tests') {
+        stage('Build + Tests + JaCoCo') {
             steps {
-                sh """
-                    cd Additions
-                    mvn -B clean verify
-                """
+                sh '''
+                  cd Additions
+                  mvn clean verify jacoco:report
+                '''
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh """
-                        cd Additions
-                        mvn sonar:sonar \
-                            -Dsonar.projectKey=Javaproject \
-                            -Dsonar.projectName=Javaproject \
-                            -Dsonar.host.url=${SONAR_HOST_URL} \
-                            -Dsonar.token=${SONAR_TOKEN}
-                    """
+                    sh '''
+                      cd Additions
+                      mvn sonar:sonar \
+                        -Dsonar.projectKey=${SONAR_PROJECT_KEY}
+                    '''
                 }
             }
         }
 
-        // ✅ ADDED QUALITY GATE
-        stage('Quality Gate') {
+        stage('Quality Gate (Coverage Check)') {
             steps {
                 script {
                     timeout(time: 2, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        env.QG_STATUS = qg.status
-
-                        def coverageCondition = qg.conditions.find {
-                            it.metricKey == 'coverage'
-                        }
-
-                        env.COVERAGE = coverageCondition?.actualValue ?: "N/A"
-                        env.COVERAGE_STATUS = coverageCondition?.status ?: "UNKNOWN"
+                        def qg = waitForQualityGate(abortPipeline: false)
 
                         if (qg.status != 'OK') {
-                            error "Quality Gate Failed"
+
+                            def sonarLink = "${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}"
+
+                            emailext(
+                                to: 'monish.reddy@invensis.net',
+                                subject: "❌ Coverage Failed (<80%) | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                                mimeType: 'text/html',
+                                body: """
+                                <html>
+                                <body>
+                                    <h2 style="color:red;">Quality Gate Failed</h2>
+
+                                    <table border="1" cellpadding="8">
+                                        <tr><th>Project</th><td>${SONAR_PROJECT_KEY}</td></tr>
+                                        <tr><th>Threshold</th><td>${COVERAGE_THRESHOLD}%</td></tr>
+                                        <tr><th>Status</th><td style="color:red;">FAILED</td></tr>
+                                        <tr><th>Sonar Dashboard</th>
+                                            <td>
+                                              <a href="${sonarLink}">${sonarLink}</a>
+                                            </td>
+                                        </tr>
+                                        <tr><th>Build</th>
+                                            <td>
+                                              <a href="${env.BUILD_URL}">View Build</a>
+                                            </td>
+                                        </tr>
+                                    </table>
+
+                                    <p><b>Reason:</b> Code coverage is below ${COVERAGE_THRESHOLD}%</p>
+                                </body>
+                                </html>
+                                """
+                            )
+
+                            error "Stopping pipeline due to coverage failure"
                         }
                     }
                 }
@@ -70,12 +93,11 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                sh """
-                    cd Additions
-                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:latest
-                """
+                sh '''
+                  cd Additions
+                  docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                  docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
+                '''
             }
         }
 
@@ -86,56 +108,11 @@ pipeline {
                     usernameVariable: 'USER',
                     passwordVariable: 'PASS'
                 )]) {
-                    sh """
-                        echo "$PASS" | docker login ${DOCKER_REGISTRY_URL} -u "$USER" --password-stdin
-                        docker push ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
-                        docker push ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:latest
-                        docker logout ${DOCKER_REGISTRY_URL}
-                    """
-                }
-            }
-        }
-    }
-
-    // ✅ EMAIL ONLY FOR COVERAGE FAILURE
-    post {
-        failure {
-            script {
-                if (env.COVERAGE_STATUS == 'ERROR') {
-
-                    def sonarLink =
-                      "https://v2code.rtwohealthcare.com/dashboard?id=Javaproject"
-
-                    emailext(
-                        to: 'monish.reddy@invensis.net',
-                        subject: "❌ Code Coverage < 80% | ${JOB_NAME} #${BUILD_NUMBER}",
-                        mimeType: 'text/html',
-                        body: """
-                        <html>
-                        <body>
-                            <h2 style="color:red;">Code Coverage Quality Gate Failed</h2>
-
-                            <p><b>Project:</b> Javaproject</p>
-                            <p><b>Coverage:</b>
-                               <span style="color:red;">
-                               ${env.COVERAGE}%
-                               </span>
-                            </p>
-                            <p><b>Required:</b> ≥ 80%</p>
-
-                            <p>
-                              🔗 <a href="${sonarLink}">
-                              View SonarQube Dashboard</a>
-                            </p>
-
-                            <p>
-                              🔗 <a href="${BUILD_URL}">
-                              View Jenkins Build</a>
-                            </p>
-                        </body>
-                        </html>
-                        """
-                    )
+                    sh '''
+                      echo "$PASS" | docker login ${DOCKER_REGISTRY_URL} -u "$USER" --password-stdin
+                      docker push ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
+                      docker logout ${DOCKER_REGISTRY_URL}
+                    '''
                 }
             }
         }
