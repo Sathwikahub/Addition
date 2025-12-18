@@ -1,9 +1,9 @@
 pipeline {
     agent any
     stages {
-        stage('Test Mail') {
+        stage('Mail Test') {
             steps {
-                echo "Testing email"
+                echo "Email debug test"
             }
         }
     }
@@ -11,8 +11,8 @@ pipeline {
         always {
             emailext(
                 to: 'sathwikag12@gmail.com',
-                subject: 'Jenkins Email Test',
-                body: 'If you receive this mail, emailext is working.'
+                subject: 'Jenkins Email Debug Test',
+                body: 'Testing emailext email'
             )
         }
     }
