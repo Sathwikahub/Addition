@@ -7,13 +7,21 @@ pipeline {
             }
         }
     }
-    post {
-        always {
-            emailext(
-                to: 'sathwikag12@gmail.com',
-                subject: 'Jenkins Email Debug Test',
-                body: 'Testing emailext email'
-            )
-        }
+   post {
+    always {
+        emailext(
+            to: 'sathwikag12@gmail.com',
+            subject: "📧 Jenkins Mail Test | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            body: """
+            Jenkins mail test successful.
+
+            Job: ${env.JOB_NAME}
+            Build: #${env.BUILD_NUMBER}
+            Status: ${currentBuild.currentResult}
+            URL: ${env.BUILD_URL}
+            """,
+            mimeType: 'text/plain'
+        )
     }
+}
 }
