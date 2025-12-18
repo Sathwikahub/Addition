@@ -2,29 +2,34 @@ pipeline {
     agent any
 
     tools {
-        jdk 'java17'
-        maven 'Maven3.9.11'
+        jdk "java17"
+        maven "Maven3.9.11"
     }
 
     environment {
-        SONAR_HOST_URL = 'https://v2code.rtwohealthcare.com'
+        SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
+        SONAR_TOKEN    = "sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa"
 
-        DOCKER_REGISTRY_URL = 'v2deploy.rtwohealthcare.com'
-        IMAGE_NAME = 'sonarqube1'
-        IMAGE_TAG  = "v${BUILD_NUMBER}"
+        IMAGE_NAME            = "sonarqube1"
+        DOCKER_REGISTRY       = "https://v2deploy.rtwohealthcare.com"
+        REGISTRY_CREDENTIALS  = "nexus-docker-cred"
+
+        dockerImage = ""
     }
 
     stages {
 
         stage('Checkout') {
-            steps { checkout scm }
+            steps {
+                checkout scm
+            }
         }
 
         stage('Maven Build + Tests') {
             steps {
                 sh '''
                     cd Additions
-                    mvn clean package
+                    mvn -B clean verify
                 '''
             }
         }
@@ -32,56 +37,37 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                        sh '''
-                            cd Additions
-                            mvn sonar:sonar \
-                              -Dsonar.projectKey=Javaproject \
-                              -Dsonar.projectName=Javaproject \
-                              -Dsonar.token=${SONAR_TOKEN}
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('SonarQube Failure Mail (No Fail)') {
-            steps {
-                sh '''
-                    cd Additions
-                    chmod +x sonar_qualitygate_mail.sh
-                    sleep 60
-                    ./sonar_qualitygate_mail.sh || true
-                '''
-            }
-        }
-
-        stage('Docker Build') {
-            steps {
-                sh '''
-                    cd Additions
-                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:latest
-                '''
-            }
-        }
-
-        stage('Docker Push') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'nexus-docker-cred',
-                    usernameVariable: 'USER',
-                    passwordVariable: 'PASS'
-                )]) {
                     sh '''
-                        echo "$PASS" | docker login ${DOCKER_REGISTRY_URL} -u "$USER" --password-stdin
-                        docker push ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}
-                        docker push ${DOCKER_REGISTRY_URL}/${IMAGE_NAME}:latest
-                        docker logout ${DOCKER_REGISTRY_URL}
+                        cd Additions
+                        mvn sonar:sonar \
+                          -Dsonar.projectKey=Javaproject \
+                          -Dsonar.projectName=Javaproject \
+                          -Dsonar.host.url=${SONAR_HOST_URL} \
+                          -Dsonar.token=${SONAR_TOKEN}
                     '''
                 }
             }
         }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    dockerImage = docker.build("${IMAGE_NAME}")
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    docker.withRegistry("${DOCKER_REGISTRY}", "${REGISTRY_CREDENTIALS}") {
+                        dockerImage.push()
+                        dockerImage.push("latest")
+                    }
+                }
+            }
+        }
     }
+
+   
 }
