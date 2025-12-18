@@ -1,17 +1,17 @@
 #!/bin/bash
 
-# -------- CONFIG --------
+# ------------- CONFIG -----------------
 SONAR_HOST="https://v2code.rtwohealthcare.com"
 PROJECT_KEY="Javaproject"
 THRESHOLD=80
 
 MAIL_TO="sathwikag12@gmail.com"
 
-# Token must come from Jenkins environment
+# Token comes from Jenkins environment
 SONAR_TOKEN="${SONAR_TOKEN}"
-# ------------------------
+# -------------------------------------
 
-echo "🔍 Fetching coverage from SonarQube..."
+echo "🔍 Fetching code coverage from SonarQube..."
 
 RESPONSE=$(curl -s -u ${SONAR_TOKEN}: \
 "${SONAR_HOST}/api/measures/component?component=${PROJECT_KEY}&metricKeys=coverage")
@@ -20,22 +20,49 @@ COVERAGE=$(echo "$RESPONSE" | grep -oP '"value":"\K[^"]+')
 
 SONAR_DASHBOARD="${SONAR_HOST}/dashboard?id=${PROJECT_KEY}"
 
-# If coverage not found → fail pipeline
+# ---------------- NULL CHECK ----------------
 if [ -z "$COVERAGE" ]; then
-  echo "❌ Unable to fetch coverage from SonarQube"
-  echo "$RESPONSE"
-  exit 1
+  echo "❌ Coverage is NULL or not reported"
+
+  mail -a "Content-Type: text/html" \
+  -s "❌ SonarQube Coverage MISSING - ${PROJECT_KEY}" \
+  "$MAIL_TO" <<EOF
+<html>
+<body style="font-family: Arial;">
+<h2 style="color:red;">Coverage Not Available ❌</h2>
+
+<p><b>Project:</b> ${PROJECT_KEY}</p>
+<p><b>Reason:</b> No coverage data reported to SonarQube.</p>
+
+<p>Possible causes:</p>
+<ul>
+<li>No unit tests</li>
+<li>JaCoCo not configured</li>
+<li>Coverage report not generated</li>
+</ul>
+
+<p>
+<a href="${SONAR_DASHBOARD}">View SonarQube Dashboard</a>
+</p>
+
+<p><b>Pipeline stopped.</b></p>
+</body>
+</html>
+EOF
+
+  exit 1   # 🚨 STOP JENKINS
 fi
 
+# ------------- COVERAGE CHECK -------------
 COVERAGE_INT=$(printf "%.0f" "$COVERAGE")
 
-echo "📊 SonarQube Coverage: ${COVERAGE_INT}%"
+echo "📊 Code Coverage: ${COVERAGE_INT}%"
 
 if [ "$COVERAGE_INT" -lt "$THRESHOLD" ]; then
 
-mail -a "Content-Type: text/html" \
--s "❌ Code Coverage Below ${THRESHOLD}% - ${PROJECT_KEY}" \
-"$MAIL_TO" <<EOF
+  mail -a "Content-Type: text/html" \
+  -s "❌ Code Coverage Below ${THRESHOLD}% - ${PROJECT_KEY}" \
+  "$MAIL_TO" <<EOF
 <html>
 <body style="font-family: Arial;">
 <h2 style="color:red;">Code Coverage Failed ❌</h2>
@@ -45,8 +72,8 @@ mail -a "Content-Type: text/html" \
 <tr><th>Coverage</th><td style="color:red;">${COVERAGE_INT}%</td></tr>
 <tr><th>Required</th><td>${THRESHOLD}%</td></tr>
 <tr>
-<th>Sonar Dashboard</th>
-<td><a href="${SONAR_DASHBOARD}">View Report</a></td>
+<th>Dashboard</th>
+<td><a href="${SONAR_DASHBOARD}">View SonarQube Report</a></td>
 </tr>
 </table>
 
@@ -56,8 +83,9 @@ mail -a "Content-Type: text/html" \
 EOF
 
   echo "❌ Coverage below threshold. Stopping pipeline."
-  exit 1   # 🚨 STOP JENKINS PIPELINE
+  exit 1   # 🚨 STOP JENKINS
 fi
 
-echo "✅ Coverage meets threshold. Continuing pipeline."
+# ---------------- SUCCESS ----------------
+echo "✅ Coverage meets threshold (${THRESHOLD}%). Pipeline continues."
 exit 0
