@@ -13,8 +13,6 @@ pipeline {
         IMAGE_NAME           = "sonarqube1"
         DOCKER_REGISTRY      = "https://v2deploy.rtwohealthcare.com"
         REGISTRY_CREDENTIALS = "nexus-docker-cred"
-
-        dockerImage = ""
     }
 
     stages {
@@ -49,12 +47,10 @@ pipeline {
             }
         }
 
-       
-
         stage('Build Docker Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${IMAGE_NAME}")
+                    docker.build("${IMAGE_NAME}")
                 }
             }
         }
@@ -63,29 +59,31 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry("${DOCKER_REGISTRY}", "${REGISTRY_CREDENTIALS}") {
-                        dockerImage.push()
-                        dockerImage.push("latest")
+                        docker.image("${IMAGE_NAME}").push()
+                        docker.image("${IMAGE_NAME}").push("latest")
                     }
                 }
             }
         }
-post
-{
-  success
-  {
-    emailext to: 'monish.reddy@invensis.net',
-    subject: "Pipeline Build is Over Build # is ${env.BUILD_NUMBER} and Build Status is ${currentBuild.result}",
-    body: "Pipeline Build is Over Build # is ${env.BUILD_NUMBER} and Build Status is ${currentBuild.result}",
-    replyTo: 'monish.reddy@invensis.net'
-  }
-  failure
-  {
-    emailext to: 'monish.reddy@invensis.net',
-    subject: "Pipeline Build is Over Build # is ${env.BUILD_NUMBER} and Build Status is ${currentBuild.result}",
-    body: "Pipeline Build is Over Build # is ${env.BUILD_NUMBER} and Build Status is ${currentBuild.result}",
-    replyTo: 'monish.reddy@invensis.net'
-    }
-  }
-}
     }
 
+    post {
+        success {
+            emailext(
+                to: 'monish.reddy@invensis.net',
+                subject: "✅ Pipeline Success | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Pipeline completed successfully.\nBuild #: ${env.BUILD_NUMBER}",
+                replyTo: 'monish.reddy@invensis.net'
+            )
+        }
+
+        failure {
+            emailext(
+                to: 'monish.reddy@invensis.net',
+                subject: "❌ Pipeline Failed | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Pipeline failed.\nBuild #: ${env.BUILD_NUMBER}\nCheck Jenkins logs.",
+                replyTo: 'monish.reddy@invensis.net'
+            )
+        }
+    }
+}
