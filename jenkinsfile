@@ -36,8 +36,8 @@ pipeline {
                         sh '''
                             cd Additions
                             mvn sonar:sonar \
-                              -Dsonar.projectKey=test_v2 \
-                              -Dsonar.projectName=test_v2 \
+                              -Dsonar.projectKey=Javaproject \
+                              -Dsonar.projectName=Javaproject \
                               -Dsonar.token=${SONAR_TOKEN}
                         '''
                     }
