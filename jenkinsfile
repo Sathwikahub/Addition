@@ -10,9 +10,9 @@ pipeline {
         SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
         SONAR_TOKEN    = "sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa"
 
-        IMAGE_NAME            = "sonarqube1"
-        DOCKER_REGISTRY       = "https://v2deploy.rtwohealthcare.com"
-        REGISTRY_CREDENTIALS  = "nexus-docker-cred"
+        IMAGE_NAME           = "sonarqube1"
+        DOCKER_REGISTRY      = "https://v2deploy.rtwohealthcare.com"
+        REGISTRY_CREDENTIALS = "nexus-docker-cred"
 
         dockerImage = ""
     }
@@ -49,6 +49,16 @@ pipeline {
             }
         }
 
+        // 🔔 ADD THIS STAGE HERE
+        stage('Sonar Quality Gate Mail Check') {
+            steps {
+                sh '''
+                    chmod +x Additions/scripts/sonar_quality_gate_mail.sh
+                    Additions/scripts/sonar_quality_gate_mail.sh
+                '''
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
@@ -68,6 +78,4 @@ pipeline {
             }
         }
     }
-
-   
 }
