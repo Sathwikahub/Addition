@@ -73,17 +73,17 @@ post
 {
   success
   {
-    emailext to: 'devopstrainingblr@gmail.com,mithuntechnologies@yahoo.com',
+    emailext to: 'monish.reddy@invensis.net',
     subject: "Pipeline Build is Over Build # is ${env.BUILD_NUMBER} and Build Status is ${currentBuild.result}",
     body: "Pipeline Build is Over Build # is ${env.BUILD_NUMBER} and Build Status is ${currentBuild.result}",
-    replyTo: 'devopstrainingblr@gmail.com'
+    replyTo: 'monish.reddy@invensis.net'
   }
   failure
   {
-    emailext to: 'devopstrainingblr@gmail.com,mithuntechnologies@yahoo.com',
+    emailext to: 'monish.reddy@invensis.net',
     subject: "Pipeline Build is Over Build # is ${env.BUILD_NUMBER} and Build Status is ${currentBuild.result}",
     body: "Pipeline Build is Over Build # is ${env.BUILD_NUMBER} and Build Status is ${currentBuild.result}",
-    replyTo: 'devopstrainingblr@gmail.com'
+    replyTo: 'monish.reddy@invensis.net'
     }
   }
 }
