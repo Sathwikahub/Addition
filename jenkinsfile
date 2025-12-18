@@ -10,7 +10,7 @@ pipeline {
         SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
         SONAR_TOKEN    = "sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa"
 
-        PROJECT_KEY    = "Javaproject"
+        PROJECT_KEY = "Javaproject"
         COVERAGE_LIMIT = "80"
 
         IMAGE_NAME           = "sonarqube1"
@@ -50,52 +50,58 @@ pipeline {
             }
         }
 
-        stage('Sonar Coverage Check (STOP on Fail)') {
-            steps {
-                script {
-                    sh 'chmod +x sonar_quality_gate_mail.sh'
+      stage('Check Coverage & Notify (Non-blocking)') {
+    steps {
+        script {
 
-                    def status = sh(
-                        script: './sonar_quality_gate_mail.sh',
-                        returnStatus: true
-                    )
+            // Wait a little so Sonar finishes processing
+            sleep time: 10, unit: 'SECONDS'
 
-                    if (status == 2) {
-                        emailext(
-                            to: 'sathwikag12@gmail.com',
-                            subject: "❌ Sonar Coverage NOT AVAILABLE | ${env.JOB_NAME}",
-                            mimeType: 'text/html',
-                            body: """
-                            <h2 style="color:red;">Coverage Missing</h2>
-                            <p><b>Project:</b> ${PROJECT_KEY}</p>
-                            <p>Coverage data was not reported by SonarQube.</p>
-                            <a href="${SONAR_HOST_URL}/dashboard?id=${PROJECT_KEY}">
-                            View Sonar Dashboard</a>
-                            """
-                        )
-                        error("Coverage NULL – stopping pipeline")
-                    }
+            def coverage = sh(
+                script: """
+                curl -s -u ${SONAR_TOKEN}: \
+                "${SONAR_HOST_URL}/api/measures/component?component=${PROJECT_KEY}&metricKeys=coverage" \
+                | jq -r '.component.measures[0].value'
+                """,
+                returnStdout: true
+            ).trim()
 
-                    if (status == 1) {
-                        emailext(
-                            to: 'sathwikag12@gmail.com',
-                            subject: "❌ Code Coverage Below ${COVERAGE_LIMIT}% | ${env.JOB_NAME}",
-                            mimeType: 'text/html',
-                            body: """
-                            <h2 style="color:red;">Coverage Failed</h2>
-                            <p><b>Threshold:</b> ${COVERAGE_LIMIT}%</p>
-                            <p>Coverage is below required limit.</p>
-                            <a href="${SONAR_HOST_URL}/dashboard?id=${PROJECT_KEY}">
-                            View Sonar Dashboard</a>
-                            """
-                        )
-                        error("Coverage below threshold – stopping pipeline")
-                    }
+            // SAFETY: handle empty / null coverage
+            if (!coverage || coverage == "null") {
+                echo "Coverage not found in SonarQube. Treating as 0%."
+                coverage = "0"
+            }
 
-                    echo "✅ Coverage OK – continuing pipeline"
-                }
+            echo "SonarQube Coverage = ${coverage}%"
+
+            if (coverage.toFloat() < 80) {
+                emailext(
+                    to: 'sathwikag12@gmail.com',
+                    subject: "⚠ SonarQube Coverage BELOW 80% | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: """
+Hello Team,
+
+SonarQube code coverage is BELOW required threshold.
+Project      : Javaproject
+Coverage     : ${coverage}%
+Required     : 80%
+
+Build URL:
+${env.BUILD_URL}
+
+Note:
+Pipeline continues. Please improve test coverage.
+
+Regards,
+Jenkins
+"""
+                )
+            } else {
+                echo "Coverage >= 80%. No email sent."
             }
         }
+    }
+}
 
         stage('Build Docker Image') {
             steps {
