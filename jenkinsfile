@@ -49,15 +49,7 @@ pipeline {
             }
         }
 
-        // 🔔 ADD THIS STAGE HERE
-        stage('Sonar Quality Gate Mail Check') {
-            steps {
-                sh '''
-                    chmod +x Additions/scripts/sonar_quality_gate_mail.sh
-                    Additions/scripts/sonar_quality_gate_mail.sh
-                '''
-            }
-        }
+       
 
         stage('Build Docker Image') {
             steps {
@@ -77,5 +69,23 @@ pipeline {
                 }
             }
         }
+post
+{
+  success
+  {
+    emailext to: 'devopstrainingblr@gmail.com,mithuntechnologies@yahoo.com',
+    subject: "Pipeline Build is Over Build # is ${env.BUILD_NUMBER} and Build Status is ${currentBuild.result}",
+    body: "Pipeline Build is Over Build # is ${env.BUILD_NUMBER} and Build Status is ${currentBuild.result}",
+    replyTo: 'devopstrainingblr@gmail.com'
+  }
+  failure
+  {
+    emailext to: 'devopstrainingblr@gmail.com,mithuntechnologies@yahoo.com',
+    subject: "Pipeline Build is Over Build # is ${env.BUILD_NUMBER} and Build Status is ${currentBuild.result}",
+    body: "Pipeline Build is Over Build # is ${env.BUILD_NUMBER} and Build Status is ${currentBuild.result}",
+    replyTo: 'devopstrainingblr@gmail.com'
     }
+  }
 }
+    }
+
