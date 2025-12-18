@@ -59,7 +59,6 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry("${DOCKER_REGISTRY}", "${REGISTRY_CREDENTIALS}") {
-                        docker.image("${IMAGE_NAME}").push()
                         docker.image("${IMAGE_NAME}").push("latest")
                     }
                 }
@@ -68,21 +67,27 @@ pipeline {
     }
 
     post {
-        success {
+        always {
             emailext(
                 to: 'sathwikag12@gmail.com',
-                subject: "✅ Pipeline Success | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: "Pipeline completed successfully.\nBuild #: ${env.BUILD_NUMBER}",
-                replyTo: 'sathwikag12@gmail.com'
-            )
-        }
+                subject: "Jenkins Build ${currentBuild.currentResult} | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+Hello Team,
 
-        failure {
-            emailext(
-                to: 'sathwikag12@gmail.com',
-                subject: "❌ Pipeline Failed | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: "Pipeline failed.\nBuild #: ${env.BUILD_NUMBER}\nCheck Jenkins logs.",
-                replyTo: 'sathwikag12@gmail.com'
+Job Name   : ${env.JOB_NAME}
+Build No  : ${env.BUILD_NUMBER}
+Status    : ${currentBuild.currentResult}
+
+Build URL :
+${env.BUILD_URL}
+
+Regards,
+Jenkins
+""",
+                recipientProviders: [
+                    [$class: 'DevelopersRecipientProvider'],
+                    [$class: 'RequesterRecipientProvider']
+                ]
             )
         }
     }
