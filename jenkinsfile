@@ -70,19 +70,19 @@ pipeline {
     post {
         success {
             emailext(
-                to: 'monish.reddy@invensis.net',
+                to: 'sathwikag12@gmail.com',
                 subject: "✅ Pipeline Success | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: "Pipeline completed successfully.\nBuild #: ${env.BUILD_NUMBER}",
-                replyTo: 'monish.reddy@invensis.net'
+                replyTo: 'sathwikag12@gmail.com'
             )
         }
 
         failure {
             emailext(
-                to: 'monish.reddy@invensis.net',
+                to: 'sathwikag12@gmail.com',
                 subject: "❌ Pipeline Failed | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: "Pipeline failed.\nBuild #: ${env.BUILD_NUMBER}\nCheck Jenkins logs.",
-                replyTo: 'monish.reddy@invensis.net'
+                replyTo: 'sathwikag12@gmail.com'
             )
         }
     }
