@@ -10,7 +10,7 @@ pipeline {
         SONAR_HOST_URL = 'https://v2code.rtwohealthcare.com'
 
         DOCKER_REGISTRY_URL = 'v2deploy.rtwohealthcare.com'
-        IMAGE_NAME = 'test-v2'
+        IMAGE_NAME = 'sonarqube1'
         IMAGE_TAG  = "v${BUILD_NUMBER}"
     }
 
