@@ -50,59 +50,18 @@ pipeline {
             }
         }
 
-      stage('Check Coverage & Notify (Non-blocking)') {
+     stage('Sonar Coverage Check (STOP on Fail)') {
     steps {
-        script {
-
-            // Wait a little so Sonar finishes processing
-            sleep time: 10, unit: 'SECONDS'
-
-            def coverage = sh(
-                script: """
-                curl -s -u ${SONAR_TOKEN}: \
-                "${SONAR_HOST_URL}/api/measures/component?component=${PROJECT_KEY}&metricKeys=coverage" \
-                | jq -r '.component.measures[0].value'
-                """,
-                returnStdout: true
-            ).trim()
-
-            // SAFETY: handle empty / null coverage
-            if (!coverage || coverage == "null") {
-                echo "Coverage not found in SonarQube. Treating as 0%."
-                coverage = "0"
-            }
-
-            echo "SonarQube Coverage = ${coverage}%"
-
-            if (coverage.toFloat() < 80) {
-                emailext(
-                    to: 'sathwikag12@gmail.com',
-                    subject: "⚠ SonarQube Coverage BELOW 80% | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                    body: """
-Hello Team,
-
-SonarQube code coverage is BELOW required threshold.
-Project      : Javaproject
-Coverage     : ${coverage}%
-Required     : 80%
-
-Build URL:
-${env.BUILD_URL}
-
-Note:
-Pipeline continues. Please improve test coverage.
-
-Regards,
-Jenkins
-"""
-                )
-            } else {
-                echo "Coverage >= 80%. No email sent."
-            }
+        withCredentials([
+            string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')
+        ]) {
+            sh '''
+                chmod +x sonar_coverage_check.sh
+                ./sonar_coverage_check.sh
+            '''
         }
     }
 }
-
         stage('Build Docker Image') {
             steps {
                 script {
