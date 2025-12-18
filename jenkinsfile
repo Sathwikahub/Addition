@@ -10,7 +10,7 @@ pipeline {
         SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
         SONAR_TOKEN    = "sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa"
 
-        PROJECT_KEY = "Javaproject"
+        PROJECT_KEY    = "Javaproject"
         COVERAGE_LIMIT = "80"
 
         IMAGE_NAME           = "sonarqube1"
@@ -50,51 +50,53 @@ pipeline {
             }
         }
 
-     stage('Sonar Coverage Check (STOP on Fail)') {
-    steps {
-        sh '''
-            chmod +x sonar_quality_gate_mail.sh
-            ./sonar_quality_gate_mail.sh
-        '''
-    }
-}
- if (status == 2) {
-                    emailext(
-                        to: 'sathwikag12@gmail.com',
-                        subject: "❌ Sonar Coverage NOT AVAILABLE | ${env.JOB_NAME}",
-                        mimeType: 'text/html',
-                        body: """
-                        <h2 style="color:red;">Coverage Missing</h2>
-                        <p>Project: Javaproject</p>
-                        <p>Coverage data not reported.</p>
-                        <a href="${SONAR_HOST_URL}/dashboard?id=Javaproject">
-                        Sonar Dashboard</a>
-                        """
-                    )
-                    error("Coverage NULL – stopping pipeline")
-                }
+        stage('Sonar Coverage Check (STOP on Fail)') {
+            steps {
+                script {
+                    sh 'chmod +x sonar_quality_gate_mail.sh'
 
-                if (status == 1) {
-                    emailext(
-                        to: 'sathwikag12@gmail.com',
-                        subject: "❌ Code Coverage Below 80% | ${env.JOB_NAME}",
-                        mimeType: 'text/html',
-                        body: """
-                        <h2 style="color:red;">Coverage Failed</h2>
-                        <p>Threshold: 80%</p>
-                        <p>Check Sonar report.</p>
-                        <a href="${SONAR_HOST_URL}/dashboard?id=Javaproject">
-                        Sonar Dashboard</a>
-                        """
+                    def status = sh(
+                        script: './sonar_quality_gate_mail.sh',
+                        returnStatus: true
                     )
-                    error("Coverage below threshold")
-                }
 
-                echo "✅ Coverage OK"
+                    if (status == 2) {
+                        emailext(
+                            to: 'sathwikag12@gmail.com',
+                            subject: "❌ Sonar Coverage NOT AVAILABLE | ${env.JOB_NAME}",
+                            mimeType: 'text/html',
+                            body: """
+                            <h2 style="color:red;">Coverage Missing</h2>
+                            <p><b>Project:</b> ${PROJECT_KEY}</p>
+                            <p>Coverage data was not reported by SonarQube.</p>
+                            <a href="${SONAR_HOST_URL}/dashboard?id=${PROJECT_KEY}">
+                            View Sonar Dashboard</a>
+                            """
+                        )
+                        error("Coverage NULL – stopping pipeline")
+                    }
+
+                    if (status == 1) {
+                        emailext(
+                            to: 'sathwikag12@gmail.com',
+                            subject: "❌ Code Coverage Below ${COVERAGE_LIMIT}% | ${env.JOB_NAME}",
+                            mimeType: 'text/html',
+                            body: """
+                            <h2 style="color:red;">Coverage Failed</h2>
+                            <p><b>Threshold:</b> ${COVERAGE_LIMIT}%</p>
+                            <p>Coverage is below required limit.</p>
+                            <a href="${SONAR_HOST_URL}/dashboard?id=${PROJECT_KEY}">
+                            View Sonar Dashboard</a>
+                            """
+                        )
+                        error("Coverage below threshold – stopping pipeline")
+                    }
+
+                    echo "✅ Coverage OK – continuing pipeline"
+                }
             }
         }
-    }
-}
+
         stage('Build Docker Image') {
             steps {
                 script {
@@ -113,5 +115,4 @@ pipeline {
             }
         }
     }
-}
 }
