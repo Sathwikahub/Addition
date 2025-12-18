@@ -58,6 +58,43 @@ pipeline {
         '''
     }
 }
+ if (status == 2) {
+                    emailext(
+                        to: 'sathwikag12@gmail.com',
+                        subject: "❌ Sonar Coverage NOT AVAILABLE | ${env.JOB_NAME}",
+                        mimeType: 'text/html',
+                        body: """
+                        <h2 style="color:red;">Coverage Missing</h2>
+                        <p>Project: Javaproject</p>
+                        <p>Coverage data not reported.</p>
+                        <a href="${SONAR_HOST_URL}/dashboard?id=Javaproject">
+                        Sonar Dashboard</a>
+                        """
+                    )
+                    error("Coverage NULL – stopping pipeline")
+                }
+
+                if (status == 1) {
+                    emailext(
+                        to: 'sathwikag12@gmail.com',
+                        subject: "❌ Code Coverage Below 80% | ${env.JOB_NAME}",
+                        mimeType: 'text/html',
+                        body: """
+                        <h2 style="color:red;">Coverage Failed</h2>
+                        <p>Threshold: 80%</p>
+                        <p>Check Sonar report.</p>
+                        <a href="${SONAR_HOST_URL}/dashboard?id=Javaproject">
+                        Sonar Dashboard</a>
+                        """
+                    )
+                    error("Coverage below threshold")
+                }
+
+                echo "✅ Coverage OK"
+            }
+        }
+    }
+}
         stage('Build Docker Image') {
             steps {
                 script {
@@ -76,4 +113,5 @@ pipeline {
             }
         }
     }
+}
 }
