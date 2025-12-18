@@ -56,8 +56,8 @@ pipeline {
             string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')
         ]) {
             sh '''
-                chmod +x sonar_coverage_check.sh
-                ./sonar_coverage_check.sh
+                chmod +x sonar_quality_gate_mail.sh
+                ./sonar_quality_gate_mail.sh
             '''
         }
     }
