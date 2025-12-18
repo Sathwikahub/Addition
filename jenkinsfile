@@ -52,14 +52,10 @@ pipeline {
 
      stage('Sonar Coverage Check (STOP on Fail)') {
     steps {
-        withCredentials([
-            string(credentialsId: 'Sonar_Maven', variable: 'SONAR_TOKEN')
-        ]) {
-            sh '''
-                chmod +x sonar_quality_gate_mail.sh
-                ./sonar_quality_gate_mail.sh
-            '''
-        }
+        sh '''
+            chmod +x sonar_quality_gate_mail.sh
+            ./sonar_quality_gate_mail.sh
+        '''
     }
 }
         stage('Build Docker Image') {
