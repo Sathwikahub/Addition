@@ -2,47 +2,52 @@ pipeline {
     agent any
 
     tools {
-        jdk "java17"
-        maven "Maven3.9.11"
+        jdk 'java17'
+        maven 'Maven3.9.11'
     }
 
     environment {
-        SONAR_HOST_URL = "https://v2code.rtwohealthcare.com"
-        SONAR_TOKEN    = "sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa"
+        SONAR_HOST_URL = 'https://v2code.rtwohealthcare.com'
+        SONAR_PROJECT_KEY = 'Javaproject'
 
-        IMAGE_NAME           = "sonarqube1"
-        DOCKER_REGISTRY      = "https://v2deploy.rtwohealthcare.com"
-        REGISTRY_CREDENTIALS = "nexus-docker-cred"
+        IMAGE_NAME = 'sonarqube1'
+        IMAGE_TAG  = 'latest'
+
+        DOCKER_REGISTRY = 'v2deploy.rtwohealthcare.com'
+        REGISTRY_CREDENTIALS = 'nexus-docker-cred'
     }
 
     stages {
 
-        stage('Checkout') {
+        stage('Checkout Source') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Maven Build + Tests') {
+        stage('Maven Build & Tests') {
             steps {
-                sh '''
-                    cd Additions
-                    mvn -B clean verify
-                '''
+                dir('Additions') {
+                    sh 'mvn -B clean verify'
+                }
             }
         }
 
         stage('SonarQube Analysis') {
+            environment {
+                SONAR_TOKEN = credentials('sonar-token')   // Jenkins credential ID
+            }
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        cd Additions
-                        mvn sonar:sonar \
-                          -Dsonar.projectKey=Javaproject \
-                          -Dsonar.projectName=Javaproject \
-                          -Dsonar.host.url=${SONAR_HOST_URL} \
-                          -Dsonar.token=${SONAR_TOKEN}
-                    '''
+                    dir('Additions') {
+                        sh '''
+                            mvn sonar:sonar \
+                              -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                              -Dsonar.projectName=${SONAR_PROJECT_KEY} \
+                              -Dsonar.host.url=${SONAR_HOST_URL} \
+                              -Dsonar.token=${SONAR_TOKEN}
+                        '''
+                    }
                 }
             }
         }
@@ -50,7 +55,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${IMAGE_NAME}")
+                    docker.build("${IMAGE_NAME}:${IMAGE_TAG}")
                 }
             }
         }
@@ -58,10 +63,16 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    docker.withRegistry("${DOCKER_REGISTRY}", "${REGISTRY_CREDENTIALS}") {
-                        docker.image("${IMAGE_NAME}").push("latest")
+                    docker.withRegistry(
+                        "https://${DOCKER_REGISTRY}",
+                        "${REGISTRY_CREDENTIALS}"
+                    ) {
+                        docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push()
                     }
                 }
             }
         }
     }
+
+    
+}
