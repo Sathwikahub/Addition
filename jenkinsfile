@@ -76,7 +76,7 @@ pipeline {
 
             if (coverage.toFloat() < 80) {
                 emailext(
-                    to: 'sathwikag12@gmail.com',
+                    to: 'sathwika.g@invensistech.com',
                     subject: "⚠ SonarQube Coverage BELOW 80% | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                     body: """
 Hello Team,
