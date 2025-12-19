@@ -35,7 +35,7 @@ pipeline {
 
         stage('SonarQube Analysis') {
             environment {
-                SONAR_TOKEN = credentials('sonar-token')   // Jenkins credential ID
+                SONAR_TOKEN = sqp_66f750d999ef3b09e6eb1c9364831c0de05f03fa   // Jenkins credential ID
             }
             steps {
                 withSonarQubeEnv('SonarQube') {
