@@ -14,7 +14,7 @@ pipeline {
         IMAGE_TAG  = 'latest'
 
         DOCKER_REGISTRY = 'v2deploy.rtwohealthcare.com'
-        REGISTRY_CREDENTIALS = 'nexus-docker-cred'
+        REGISTRY_CREDENTIALS = 'docker-repo'
     }
 
     stages {
