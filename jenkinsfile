@@ -13,8 +13,7 @@ pipeline {
         IMAGE_NAME = 'sonarqube1'
         IMAGE_TAG  = 'latest'
 
-        
-        DOCKER_REGISTRY = 'v2deploy.rtwohealthcare.com/repository/docker-repo/'
+        DOCKER_REGISTRY = 'v2deploy.rtwohealthcare.com'
         REGISTRY_CREDENTIALS = 'docker-repo'
     }
 
